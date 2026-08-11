@@ -1,0 +1,160 @@
+/**
+ * "Earthy" theme — the Fable storybook design tokens, exposed as Tailwind v4
+ * theme variables. Every `--color-*`, `--font-*`, `--radius-*` and
+ * `--shadow-*` variable below becomes a matching Tailwind utility class
+ * (e.g. `--color-brand-primary` -> `bg-brand-primary` / `text-brand-primary`).
+ */
+@theme {
+  /* Brand */
+  --color-brand-primary: #c05b33; /* terracotta */
+  --color-brand-secondary: #7a9455; /* moss (Capi body) */
+  --color-brand-secondary-light: #8fac67;
+
+  /* Surfaces */
+  --color-surface-app: #efe3c8;
+  --color-surface-card: #fffbf0;
+  --color-surface-chip: #f0e4c8;
+  --color-surface-alt: #f6edda;
+  --color-surface-outer: #e8dcc0;
+  --color-surface-bubble-bot: #fffbf0;
+  --color-surface-intro: #fdf8ee;
+
+  /* Text */
+  --color-text-strong: #3a2d1f; /* ink */
+  --color-text-body: #6b5b45;
+  --color-text-muted: #97846a;
+  --color-text-faint: #b8a588;
+  --color-text-cream: #fff9ec;
+
+  /* Borders */
+  --color-border-subtle: #d8c7a9;
+  --color-border-strong: #3a2d1f;
+  --color-border-dashed: #c6b190;
+
+  /* Accents */
+  --color-accent-amber: #e0a94f;
+  --color-accent-danger: #b5482f;
+  --color-accent-blush: #e58a73;
+
+  /* Risk levels */
+  --color-risk-low-bg: #b9d48b;
+  --color-risk-low-text: #2f3b17;
+  --color-risk-medium-bg: #e0a94f;
+  --color-risk-medium-text: #4a3208;
+  --color-risk-high-bg: #b5482f;
+  --color-risk-high-text: #fff3e4;
+
+  /* Contextual surfaces */
+  --color-amber-wash-bg: #f7e7c3;
+  --color-amber-wash-border: #c99b4c;
+  --color-amber-wash-text: #8a5a18;
+  --color-hist-ai-bg: #efe3c8;
+  --color-hist-ai-text: #a3542f;
+  --color-hist-q-bg: #e7edd6;
+  --color-hist-q-text: #4c6b38;
+
+  /* Typography */
+  --font-display: var(--font-young-serif), serif;
+  --font-sans: var(--font-nunito), sans-serif;
+
+  /* Radius */
+  --radius-pill: 100px;
+  --radius-button: 18px;
+  --radius-card: 16px;
+  --radius-input: 14px;
+  --radius-icon: 12px;
+
+  /* Sticker shadows — solid offset, no blur */
+  --color-shadow-mascot: rgba(58, 45, 31, 0.28);
+  --color-shadow-soft: rgba(58, 45, 31, 0.2);
+  --color-dot-grid: rgba(58, 45, 31, 0.045);
+  --shadow-sticker-sm: 0 2px 0 var(--color-border-strong);
+  --shadow-sticker-md: 0 3px 0 var(--color-border-strong);
+  --shadow-sticker-lg: 0 4px 0 var(--color-border-strong);
+  --shadow-sticker-mascot: 0 6px 0 rgba(58, 45, 31, 0.28);
+
+  /* Animation */
+  --animate-sc-typing: sc-typing 0.6s ease-in-out infinite;
+  --animate-sc-wave: sc-wave 1.2s ease-in-out infinite;
+  --animate-sc-pop: sc-pop 0.3s ease-out;
+  --animate-sc-blink: sc-blink 1.2s ease-in-out infinite;
+  --animate-sc-send-glow: sc-send-glow 2s ease-in-out infinite;
+  --animate-sc-tts-pulse: sc-tts-pulse 1.5s ease-in-out infinite;
+  --animate-sc-twinkle: sc-twinkle 2s ease-in-out infinite;
+}
+
+@keyframes sc-typing {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@keyframes sc-wave {
+  0%,
+  100% {
+    transform: scaleY(0.4);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes sc-pop {
+  0% {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes sc-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes sc-send-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(192, 91, 51, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 9px rgba(192, 91, 51, 0);
+  }
+}
+
+@keyframes sc-tts-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px rgba(192, 91, 51, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(192, 91, 51, 0.7);
+  }
+}
+
+@keyframes sc-twinkle {
+  0%,
+  100% {
+    opacity: 0.9;
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.82) rotate(12deg);
+  }
+}

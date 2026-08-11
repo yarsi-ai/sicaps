@@ -1,0 +1,48 @@
+[
+  {
+    "name": "ga gatal subtracts from intensitas score",
+    "locale": "id",
+    "category": "intensitas",
+    "input": [
+      { "keyword": "gatal banget", "confidence": "high" },
+      { "keyword": "ga gatal", "confidence": "high" }
+    ],
+    "expected": {
+      "score": -1,
+      "matchedPatterns": ["gatal banget", "ga gatal"]
+    }
+  },
+  {
+    "name": "cuma siang subtracts from waktu score",
+    "locale": "id",
+    "category": "waktu",
+    "input": [
+      { "keyword": "tiap malam", "confidence": "high" },
+      { "keyword": "cuma siang", "confidence": "high" }
+    ],
+    "expected": {
+      "score": 1,
+      "matchedPatterns": ["tiap malam", "cuma siang"]
+    }
+  },
+  {
+    "name": "sendiri subtracts from kontak score",
+    "locale": "id",
+    "category": "kontak",
+    "input": [{ "keyword": "sendiri", "confidence": "high" }],
+    "expected": {
+      "score": -2,
+      "matchedPatterns": ["sendiri"]
+    }
+  },
+  {
+    "name": "kulit normal subtracts from lesi score",
+    "locale": "id",
+    "category": "lesi",
+    "input": [{ "keyword": "kulit normal", "confidence": "high" }],
+    "expected": {
+      "score": -2,
+      "matchedPatterns": ["kulit normal"]
+    }
+  }
+]

@@ -1,0 +1,536 @@
+import type { CategoryName, Locale, Pill } from '../../domain/keywords/types';
+
+const PILLS: Record<Locale, Record<CategoryName, Pill[]>> = {
+  id: {
+    intensitas: [
+      {
+        id: 'int_severe',
+        label: 'Gatal banget, parah, ga tahan',
+        score: 1,
+        category: 'intensitas',
+        locale: 'id',
+      },
+      {
+        id: 'int_scratch',
+        label: 'Pengen garuk terus',
+        score: 1,
+        category: 'intensitas',
+        locale: 'id',
+      },
+      {
+        id: 'int_sleep',
+        label: 'Ganggu tidur / kebangun malam',
+        score: 1,
+        category: 'intensitas',
+        locale: 'id',
+      },
+      {
+        id: 'int_wound',
+        label: 'Sampe luka / berdarah',
+        score: 1,
+        category: 'intensitas',
+        locale: 'id',
+      },
+      {
+        id: 'int_mild',
+        label: 'Agak gatal / lumayan',
+        score: 0,
+        category: 'intensitas',
+        locale: 'id',
+      },
+      {
+        id: 'int_none',
+        label: 'Tidak gatal',
+        score: -2,
+        category: 'intensitas',
+        locale: 'id',
+        isNegative: true,
+      },
+    ],
+    waktu: [
+      {
+        id: 'waktu_night',
+        label: 'Malam hari',
+        score: 2,
+        category: 'waktu',
+        locale: 'id',
+      },
+      {
+        id: 'waktu_worse_night',
+        label: 'Makin parah malam',
+        score: 2,
+        category: 'waktu',
+        locale: 'id',
+      },
+      {
+        id: 'waktu_bedtime',
+        label: 'Pas mau tidur / tengah malam',
+        score: 2,
+        category: 'waktu',
+        locale: 'id',
+      },
+      {
+        id: 'waktu_day_better',
+        label: 'Siang mendingan',
+        score: 1,
+        category: 'waktu',
+        locale: 'id',
+      },
+      {
+        id: 'waktu_all_day',
+        label: 'Sepanjang hari',
+        score: 1,
+        category: 'waktu',
+        locale: 'id',
+      },
+      {
+        id: 'waktu_day_only',
+        label: 'Cuma siang / tidak malam',
+        score: -1,
+        category: 'waktu',
+        locale: 'id',
+        isNegative: true,
+      },
+    ],
+    lokasi_tubuh: [
+      {
+        id: 'lok_finger_webs',
+        label: 'Sela jari',
+        score: 2,
+        category: 'lokasi_tubuh',
+        locale: 'id',
+      },
+      {
+        id: 'lok_genital',
+        label: 'Area kelamin',
+        score: 2,
+        category: 'lokasi_tubuh',
+        locale: 'id',
+      },
+      {
+        id: 'lok_body_parts',
+        label: 'Jari tangan/pergelangan/ketiak/perut/dll',
+        score: 1,
+        category: 'lokasi_tubuh',
+        locale: 'id',
+      },
+      {
+        id: 'lok_whole_body',
+        label: 'Seluruh badan',
+        score: 0,
+        category: 'lokasi_tubuh',
+        locale: 'id',
+      },
+    ],
+    kontak: [
+      {
+        id: 'kontak_roommate',
+        label: 'Temen sekamar gatal',
+        score: 2,
+        category: 'kontak',
+        locale: 'id',
+      },
+      {
+        id: 'kontak_housemate',
+        label: 'Serumah / temen pondok',
+        score: 2,
+        category: 'kontak',
+        locale: 'id',
+      },
+      {
+        id: 'kontak_many',
+        label: 'Banyak yang gatal',
+        score: 2,
+        category: 'kontak',
+        locale: 'id',
+      },
+      {
+        id: 'kontak_bed',
+        label: 'Satu kasur / selimut',
+        score: 2,
+        category: 'kontak',
+        locale: 'id',
+      },
+      {
+        id: 'kontak_alone',
+        label: 'Sendiri / ga ada yang lain',
+        score: -2,
+        category: 'kontak',
+        locale: 'id',
+        isNegative: true,
+      },
+    ],
+    lesi: [
+      {
+        id: 'lesi_papules',
+        label: 'Bintil / bintil kecil',
+        score: 2,
+        category: 'lesi',
+        locale: 'id',
+      },
+      {
+        id: 'lesi_welts',
+        label: 'Bentol-bentol',
+        score: 1,
+        category: 'lesi',
+        locale: 'id',
+      },
+      {
+        id: 'lesi_redness',
+        label: 'Merah-merah / beruntusan',
+        score: 1,
+        category: 'lesi',
+        locale: 'id',
+      },
+      {
+        id: 'lesi_wounds',
+        label: 'Lecet / luka garukan',
+        score: 1,
+        category: 'lesi',
+        locale: 'id',
+      },
+      {
+        id: 'lesi_lines',
+        label: 'Garis / terowongan',
+        score: 1,
+        category: 'lesi',
+        locale: 'id',
+      },
+      {
+        id: 'lesi_bites',
+        label: 'Kayak digigit',
+        score: 0,
+        category: 'lesi',
+        locale: 'id',
+      },
+      {
+        id: 'lesi_dry',
+        label: 'Kulit kering',
+        score: 0,
+        category: 'lesi',
+        locale: 'id',
+      },
+      {
+        id: 'lesi_normal',
+        label: 'Kulit normal / ga ada bentol',
+        score: -2,
+        category: 'lesi',
+        locale: 'id',
+        isNegative: true,
+      },
+    ],
+    faktor_risiko: [
+      {
+        id: 'risiko_boarding',
+        label: 'Tinggal di pondok/asrama',
+        score: 2,
+        category: 'faktor_risiko',
+        locale: 'id',
+      },
+      {
+        id: 'risiko_crowded',
+        label: 'Sekamar rame',
+        score: 2,
+        category: 'faktor_risiko',
+        locale: 'id',
+      },
+      {
+        id: 'risiko_sharing_clothes',
+        label: 'Tukeran baju/sarung/handuk',
+        score: 2,
+        category: 'faktor_risiko',
+        locale: 'id',
+      },
+      {
+        id: 'risiko_sharing_bed',
+        label: 'Kasur barengan / tidur bareng',
+        score: 2,
+        category: 'faktor_risiko',
+        locale: 'id',
+      },
+      {
+        id: 'risiko_hygiene',
+        label: 'Jarang ganti sprei / kebersihan kurang',
+        score: 2,
+        category: 'faktor_risiko',
+        locale: 'id',
+      },
+    ],
+  },
+  en: {
+    intensitas: [
+      {
+        id: 'int_severe',
+        label: 'Very itchy, severe, unbearable',
+        score: 1,
+        category: 'intensitas',
+        locale: 'en',
+      },
+      {
+        id: 'int_scratch',
+        label: 'Constant urge to scratch',
+        score: 1,
+        category: 'intensitas',
+        locale: 'en',
+      },
+      {
+        id: 'int_sleep',
+        label: 'Disturbs sleep / wakes up at night',
+        score: 1,
+        category: 'intensitas',
+        locale: 'en',
+      },
+      {
+        id: 'int_wound',
+        label: 'Causes wounds / bleeding',
+        score: 1,
+        category: 'intensitas',
+        locale: 'en',
+      },
+      {
+        id: 'int_mild',
+        label: 'Mildly itchy / moderate',
+        score: 0,
+        category: 'intensitas',
+        locale: 'en',
+      },
+      {
+        id: 'int_none',
+        label: 'Not itchy',
+        score: -2,
+        category: 'intensitas',
+        locale: 'en',
+        isNegative: true,
+      },
+    ],
+    waktu: [
+      {
+        id: 'waktu_night',
+        label: 'At night',
+        score: 2,
+        category: 'waktu',
+        locale: 'en',
+      },
+      {
+        id: 'waktu_worse_night',
+        label: 'Worse at night',
+        score: 2,
+        category: 'waktu',
+        locale: 'en',
+      },
+      {
+        id: 'waktu_bedtime',
+        label: 'At bedtime / midnight',
+        score: 2,
+        category: 'waktu',
+        locale: 'en',
+      },
+      {
+        id: 'waktu_day_better',
+        label: 'Better during the day',
+        score: 1,
+        category: 'waktu',
+        locale: 'en',
+      },
+      {
+        id: 'waktu_all_day',
+        label: 'All day long',
+        score: 1,
+        category: 'waktu',
+        locale: 'en',
+      },
+      {
+        id: 'waktu_day_only',
+        label: 'Only daytime / not at night',
+        score: -1,
+        category: 'waktu',
+        locale: 'en',
+        isNegative: true,
+      },
+    ],
+    lokasi_tubuh: [
+      {
+        id: 'lok_finger_webs',
+        label: 'Between fingers',
+        score: 2,
+        category: 'lokasi_tubuh',
+        locale: 'en',
+      },
+      {
+        id: 'lok_genital',
+        label: 'Genital area',
+        score: 2,
+        category: 'lokasi_tubuh',
+        locale: 'en',
+      },
+      {
+        id: 'lok_body_parts',
+        label: 'Fingers/wrists/armpits/abdomen/etc',
+        score: 1,
+        category: 'lokasi_tubuh',
+        locale: 'en',
+      },
+      {
+        id: 'lok_whole_body',
+        label: 'Whole body',
+        score: 0,
+        category: 'lokasi_tubuh',
+        locale: 'en',
+      },
+    ],
+    kontak: [
+      {
+        id: 'kontak_roommate',
+        label: 'Roommate also itchy',
+        score: 2,
+        category: 'kontak',
+        locale: 'en',
+      },
+      {
+        id: 'kontak_housemate',
+        label: 'Housemate / boarding friend',
+        score: 2,
+        category: 'kontak',
+        locale: 'en',
+      },
+      {
+        id: 'kontak_many',
+        label: 'Many people itchy',
+        score: 2,
+        category: 'kontak',
+        locale: 'en',
+      },
+      {
+        id: 'kontak_bed',
+        label: 'Sharing bed / blanket',
+        score: 2,
+        category: 'kontak',
+        locale: 'en',
+      },
+      {
+        id: 'kontak_alone',
+        label: 'Only me / no one else',
+        score: -2,
+        category: 'kontak',
+        locale: 'en',
+        isNegative: true,
+      },
+    ],
+    lesi: [
+      {
+        id: 'lesi_papules',
+        label: 'Small bumps / papules',
+        score: 2,
+        category: 'lesi',
+        locale: 'en',
+      },
+      {
+        id: 'lesi_welts',
+        label: 'Welts / hives',
+        score: 1,
+        category: 'lesi',
+        locale: 'en',
+      },
+      {
+        id: 'lesi_redness',
+        label: 'Redness / rash',
+        score: 1,
+        category: 'lesi',
+        locale: 'en',
+      },
+      {
+        id: 'lesi_wounds',
+        label: 'Scratch wounds / excoriations',
+        score: 1,
+        category: 'lesi',
+        locale: 'en',
+      },
+      {
+        id: 'lesi_lines',
+        label: 'Lines / burrows',
+        score: 1,
+        category: 'lesi',
+        locale: 'en',
+      },
+      {
+        id: 'lesi_bites',
+        label: 'Like insect bites',
+        score: 0,
+        category: 'lesi',
+        locale: 'en',
+      },
+      {
+        id: 'lesi_dry',
+        label: 'Dry skin',
+        score: 0,
+        category: 'lesi',
+        locale: 'en',
+      },
+      {
+        id: 'lesi_normal',
+        label: 'Normal skin / no bumps',
+        score: -2,
+        category: 'lesi',
+        locale: 'en',
+        isNegative: true,
+      },
+    ],
+    faktor_risiko: [
+      {
+        id: 'risiko_boarding',
+        label: 'Lives in boarding school/dormitory',
+        score: 2,
+        category: 'faktor_risiko',
+        locale: 'en',
+      },
+      {
+        id: 'risiko_crowded',
+        label: 'Crowded room',
+        score: 2,
+        category: 'faktor_risiko',
+        locale: 'en',
+      },
+      {
+        id: 'risiko_sharing_clothes',
+        label: 'Sharing clothes/sarong/towels',
+        score: 2,
+        category: 'faktor_risiko',
+        locale: 'en',
+      },
+      {
+        id: 'risiko_sharing_bed',
+        label: 'Sharing bed / sleeping together',
+        score: 2,
+        category: 'faktor_risiko',
+        locale: 'en',
+      },
+      {
+        id: 'risiko_hygiene',
+        label: 'Rarely changes bedsheets / poor hygiene',
+        score: 2,
+        category: 'faktor_risiko',
+        locale: 'en',
+      },
+    ],
+  },
+};
+
+/**
+ * Get all pills for a given locale and category.
+ */
+export function getPills(locale: Locale, category: CategoryName): Pill[] {
+  return PILLS[locale][category];
+}
+
+/**
+ * Find a pill by its ID within a given locale.
+ * Searches across all categories for the locale.
+ */
+export function getPillById(locale: Locale, pillId: string): Pill | undefined {
+  const categories = PILLS[locale];
+  for (const category of Object.values(categories)) {
+    const found = category.find((pill) => pill.id === pillId);
+    if (found) return found;
+  }
+  return undefined;
+}

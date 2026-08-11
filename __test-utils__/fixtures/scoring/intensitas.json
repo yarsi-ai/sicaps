@@ -1,0 +1,45 @@
+[
+  {
+    "name": "basic gatal banget matches score 1 pattern",
+    "locale": "id",
+    "category": "intensitas",
+    "input": [{ "keyword": "gatal banget", "confidence": "high" }],
+    "expected": {
+      "score": 1,
+      "matchedPatterns": ["gatal banget"]
+    }
+  },
+  {
+    "name": "ga tahan matches unbearable pattern with score 1",
+    "locale": "id",
+    "category": "intensitas",
+    "input": [{ "keyword": "ga tahan", "confidence": "high" }],
+    "expected": {
+      "score": 1,
+      "matchedPatterns": ["ga tahan"]
+    }
+  },
+  {
+    "name": "agak gatal matches score 0 pattern and contributes 0",
+    "locale": "id",
+    "category": "intensitas",
+    "input": [{ "keyword": "agak gatal", "confidence": "high" }],
+    "expected": {
+      "score": 0,
+      "matchedPatterns": ["agak gatal"]
+    }
+  },
+  {
+    "name": "multiple keywords accumulate scores",
+    "locale": "id",
+    "category": "intensitas",
+    "input": [
+      { "keyword": "gatal banget", "confidence": "high" },
+      { "keyword": "ganggu tidur", "confidence": "medium" }
+    ],
+    "expected": {
+      "score": 2,
+      "matchedPatterns": ["gatal banget", "ganggu tidur"]
+    }
+  }
+]

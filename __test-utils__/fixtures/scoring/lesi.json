@@ -1,0 +1,45 @@
+[
+  {
+    "name": "bintil matches papules with score 2",
+    "locale": "id",
+    "category": "lesi",
+    "input": [{ "keyword": "bintil kecil", "confidence": "high" }],
+    "expected": {
+      "score": 2,
+      "matchedPatterns": ["bintil kecil"]
+    }
+  },
+  {
+    "name": "bentol matches welts with score 1",
+    "locale": "id",
+    "category": "lesi",
+    "input": [{ "keyword": "bentol bentol", "confidence": "high" }],
+    "expected": {
+      "score": 1,
+      "matchedPatterns": ["bentol bentol"]
+    }
+  },
+  {
+    "name": "kayak digigit matches bug bite pattern with score 0",
+    "locale": "id",
+    "category": "lesi",
+    "input": [{ "keyword": "kayak digigit", "confidence": "high" }],
+    "expected": {
+      "score": 0,
+      "matchedPatterns": ["kayak digigit"]
+    }
+  },
+  {
+    "name": "multiple lesi types accumulate scores",
+    "locale": "id",
+    "category": "lesi",
+    "input": [
+      { "keyword": "bintil kecil", "confidence": "high" },
+      { "keyword": "lecet", "confidence": "medium" }
+    ],
+    "expected": {
+      "score": 3,
+      "matchedPatterns": ["bintil kecil", "lecet"]
+    }
+  }
+]

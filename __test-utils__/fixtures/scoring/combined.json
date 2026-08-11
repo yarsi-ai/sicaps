@@ -1,0 +1,246 @@
+[
+  {
+    "name": "Turn 2 — intensitas + waktu + lokasi = MODERATE",
+    "locale": "id",
+    "pool": {
+      "intensitas": [
+        {
+          "keyword": "gatal banget",
+          "confidence": "high",
+          "turn": 2,
+          "matched": false,
+          "matchedPattern": null
+        }
+      ],
+      "waktu": [
+        {
+          "keyword": "makin parah malam",
+          "confidence": "high",
+          "turn": 2,
+          "matched": false,
+          "matchedPattern": null
+        }
+      ],
+      "lokasi_tubuh": [
+        {
+          "keyword": "sela jari",
+          "confidence": "high",
+          "turn": 2,
+          "matched": false,
+          "matchedPattern": null
+        }
+      ],
+      "kontak": [],
+      "lesi": [],
+      "faktor_risiko": []
+    },
+    "expected": {
+      "totalScore": 5,
+      "riskLevel": "MODERATE",
+      "scores": {
+        "intensitas": { "raw": 1, "capped": 1 },
+        "waktu": { "raw": 2, "capped": 2 },
+        "lokasi_tubuh": { "raw": 2, "capped": 2 },
+        "kontak": { "raw": 0, "capped": 0 },
+        "lesi": { "raw": 0, "capped": 0 },
+        "faktor_risiko": { "raw": 0, "capped": 0 }
+      }
+    }
+  },
+  {
+    "name": "Turn 3 — adds kontak = HIGH",
+    "locale": "id",
+    "pool": {
+      "intensitas": [
+        {
+          "keyword": "gatal banget",
+          "confidence": "high",
+          "turn": 2,
+          "matched": false,
+          "matchedPattern": null
+        }
+      ],
+      "waktu": [
+        {
+          "keyword": "makin parah malam",
+          "confidence": "high",
+          "turn": 2,
+          "matched": false,
+          "matchedPattern": null
+        }
+      ],
+      "lokasi_tubuh": [
+        {
+          "keyword": "sela jari",
+          "confidence": "high",
+          "turn": 2,
+          "matched": false,
+          "matchedPattern": null
+        }
+      ],
+      "kontak": [
+        {
+          "keyword": "temen sekamar",
+          "confidence": "high",
+          "turn": 3,
+          "matched": false,
+          "matchedPattern": null
+        },
+        {
+          "keyword": "banyak yang gatal",
+          "confidence": "high",
+          "turn": 3,
+          "matched": false,
+          "matchedPattern": null
+        }
+      ],
+      "lesi": [],
+      "faktor_risiko": []
+    },
+    "expected": {
+      "totalScore": 9,
+      "riskLevel": "HIGH",
+      "scores": {
+        "intensitas": { "raw": 1, "capped": 1 },
+        "waktu": { "raw": 2, "capped": 2 },
+        "lokasi_tubuh": { "raw": 2, "capped": 2 },
+        "kontak": { "raw": 4, "capped": 4 },
+        "lesi": { "raw": 0, "capped": 0 },
+        "faktor_risiko": { "raw": 0, "capped": 0 }
+      }
+    }
+  },
+  {
+    "name": "Negative keywords floor kontak to zero",
+    "locale": "id",
+    "pool": {
+      "intensitas": [
+        {
+          "keyword": "gatal banget",
+          "confidence": "high",
+          "turn": 2,
+          "matched": false,
+          "matchedPattern": null
+        }
+      ],
+      "waktu": [],
+      "lokasi_tubuh": [],
+      "kontak": [
+        {
+          "keyword": "temen sekamar",
+          "confidence": "high",
+          "turn": 2,
+          "matched": false,
+          "matchedPattern": null
+        },
+        {
+          "keyword": "sendiri",
+          "confidence": "high",
+          "turn": 5,
+          "matched": false,
+          "matchedPattern": null
+        }
+      ],
+      "lesi": [],
+      "faktor_risiko": []
+    },
+    "expected": {
+      "totalScore": 1,
+      "riskLevel": "LOW",
+      "scores": {
+        "intensitas": { "raw": 1, "capped": 1 },
+        "waktu": { "raw": 0, "capped": 0 },
+        "lokasi_tubuh": { "raw": 0, "capped": 0 },
+        "kontak": { "raw": 0, "capped": 0 },
+        "lesi": { "raw": 0, "capped": 0 },
+        "faktor_risiko": { "raw": 0, "capped": 0 }
+      }
+    }
+  },
+  {
+    "name": "All categories populated — HIGH risk",
+    "locale": "id",
+    "pool": {
+      "intensitas": [
+        {
+          "keyword": "gatal banget",
+          "confidence": "high",
+          "turn": 2,
+          "matched": false,
+          "matchedPattern": null
+        },
+        {
+          "keyword": "ganggu tidur",
+          "confidence": "high",
+          "turn": 2,
+          "matched": false,
+          "matchedPattern": null
+        }
+      ],
+      "waktu": [
+        {
+          "keyword": "makin parah malam",
+          "confidence": "high",
+          "turn": 2,
+          "matched": false,
+          "matchedPattern": null
+        }
+      ],
+      "lokasi_tubuh": [
+        {
+          "keyword": "sela jari",
+          "confidence": "high",
+          "turn": 3,
+          "matched": false,
+          "matchedPattern": null
+        }
+      ],
+      "kontak": [
+        {
+          "keyword": "temen sekamar",
+          "confidence": "high",
+          "turn": 3,
+          "matched": false,
+          "matchedPattern": null
+        }
+      ],
+      "lesi": [
+        {
+          "keyword": "bintil kecil",
+          "confidence": "high",
+          "turn": 4,
+          "matched": false,
+          "matchedPattern": null
+        }
+      ],
+      "faktor_risiko": [
+        {
+          "keyword": "pondok",
+          "confidence": "high",
+          "turn": 5,
+          "matched": false,
+          "matchedPattern": null
+        },
+        {
+          "keyword": "tukeran handuk",
+          "confidence": "medium",
+          "turn": 5,
+          "matched": false,
+          "matchedPattern": null
+        }
+      ]
+    },
+    "expected": {
+      "totalScore": 14,
+      "riskLevel": "HIGH",
+      "scores": {
+        "intensitas": { "raw": 2, "capped": 2 },
+        "waktu": { "raw": 2, "capped": 2 },
+        "lokasi_tubuh": { "raw": 2, "capped": 2 },
+        "kontak": { "raw": 2, "capped": 2 },
+        "lesi": { "raw": 2, "capped": 2 },
+        "faktor_risiko": { "raw": 4, "capped": 4 }
+      }
+    }
+  }
+]

@@ -1,0 +1,392 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ==================== MVP ENUMS ====================
+
+enum RiskLevel {
+  LOW
+  MODERATE
+  HIGH
+}
+
+enum Perception {
+  UNDERESTIMATE
+  OVERESTIMATE
+  BARRIER
+  ADEQUATE
+}
+
+enum ScreeningStatus {
+  IN_PROGRESS
+  COMPLETED
+  REVIEWED
+}
+
+enum EducationLevel {
+  ELEMENTARY
+  JUNIOR_HIGH
+  SENIOR_HIGH
+}
+
+// Phase 2
+enum Role {
+  ADMIN
+  DOCTOR
+  CADRE
+  USER
+  ANONYMOUS
+}
+
+// Phase 2
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Phase 2
+enum ReviewAction {
+  REFER_CLINIC
+  EDUCATE
+  OTHER
+}
+
+enum SessionPhase {
+  GREETING
+  COLLECTING
+  ASKING_PERCEPTION
+  OFFERING_RESULT
+  SCREENING_COMPLETE
+  FOLLOW_UP
+  CLOSED
+}
+
+enum ParseStatus {
+  SUCCESS
+  PARTIAL
+  FAILURE
+}
+
+enum EvaluatorType {
+  DEVELOPER
+  DOCTOR
+  RESEARCHER
+}
+
+// ==================== MVP MODELS ====================
+
+model ScreeningSession {
+  id                   String          @id @default(uuid()) @map("id")
+  locale               String          @default("id") @map("locale")
+  mode                 String          @default("ai") @map("mode")
+  status               ScreeningStatus @default(IN_PROGRESS) @map("status")
+  categoriesCovered    Json            @default("[]") @map("categories_covered")
+  scores               Json?           @map("scores")
+  totalScore           Int?            @map("total_score")
+  riskLevel            RiskLevel?      @map("risk_level")
+  perception           Perception?     @map("perception")
+  aiConclusion         String?         @map("ai_conclusion")
+  aiPerceptionResponse String?         @map("ai_perception_response")
+  aiRecommendation     String?         @map("ai_recommendation")
+  aiSuggestion         String?         @map("ai_suggestion")
+  metadata             Json?           @map("metadata")
+  shareToken           String?         @unique @default(uuid()) @map("share_token")
+  promptVersion        String          @default("v1") @map("prompt_version")
+  scoringVersion       String          @default("v1") @map("scoring_version")
+  source               String          @default("production") @map("source")
+  createdAt            DateTime        @default(now()) @map("created_at")
+  completedAt          DateTime?       @map("completed_at")
+  updatedAt            DateTime        @updatedAt @map("updated_at")
+  deletedAt            DateTime?       @map("deleted_at")
+
+  // V2 screening chat fields
+  phase               SessionPhase @default(GREETING) @map("phase")
+  turnCount           Int          @default(0) @map("turn_count")
+  dimensiTerisi       Json         @default("{}") @map("dimensi_terisi")
+  dimensiBelum        String[]     @default(["intensitas", "waktu", "lokasi_tubuh", "kontak", "lesi", "faktor_risiko"]) @map("dimensi_belum")
+  hasilDitampilkan    Boolean      @default(false) @map("hasil_ditampilkan")
+  partial             Boolean      @default(false) @map("partial")
+  processing          Boolean      @default(false) @map("processing")
+  processingStartedAt DateTime?    @map("processing_started_at")
+  expiresAt           DateTime?    @map("expires_at")
+
+  // V2 binary scoring fields
+  gatalMalam    Boolean  @default(false) @map("gatal_malam")
+  kontakSerupa  Boolean  @default(false) @map("kontak_serupa")
+  lokasiKhas    Boolean  @default(false) @map("lokasi_khas")
+  asrama        Boolean  @default(false) @map("asrama")
+  tukarAlat     Boolean  @default(false) @map("tukar_alat")
+  lokasiDetail  String[] @default([]) @map("lokasi_detail")
+  chipsAnswered String[] @default([]) @map("chips_answered")
+  chipsSubState String   @default("FREE_TEXT") @map("chips_sub_state")
+  toneTheme     String   @default("hybrid") @map("tone_theme")
+  lastChipsTurn Int      @default(0) @map("last_chips_turn")
+
+  // V2 conflict resolution fields
+  conflictDimension String? @map("conflict_dimension")
+  conflictClarified Boolean @default(false) @map("conflict_clarified")
+  stagnationCount   Int     @default(0) @map("stagnation_count")
+
+  messages            ChatMessage[]
+  extractions         TurnExtraction[]
+  turnLogs            TurnLog[]
+  evaluationFeedbacks EvaluationFeedback[]
+  demographics        Demographics?
+  screeningResults    ScreeningResult[]
+  checkpoint          Checkpoint?
+
+  @@index([status, riskLevel], map: "idx_session_status_risk")
+  @@index([shareToken], map: "idx_session_share_token")
+  @@index([createdAt(sort: Desc)], map: "idx_session_created_desc")
+  @@index([riskLevel, createdAt(sort: Desc)], map: "idx_session_risk_created")
+  @@map("screening_session")
+}
+
+model Demographics {
+  id             String         @id @default(uuid()) @map("id")
+  sessionId      String         @unique @map("session_id")
+  name           String?        @map("name")
+  age            Int            @map("age")
+  gender         String         @map("gender")
+  educationLevel EducationLevel @map("education_level")
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  session ScreeningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("demographics")
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid()) @map("id")
+  sessionId String   @map("session_id")
+  role      String   @map("role")
+  content   String   @map("content")
+  isVoice   Boolean  @default(false) @map("is_voice")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  session ScreeningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt], map: "idx_message_session_time")
+  @@map("chat_message")
+}
+
+model TurnExtraction {
+  id         String   @id @default(uuid()) @map("id")
+  sessionId  String   @map("session_id")
+  turnNumber Int      @map("turn_number")
+  extraction Json     @map("extraction")
+  scores     Json     @map("scores")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  session ScreeningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, turnNumber], map: "uq_extraction_session_turn")
+  @@map("turn_extraction")
+}
+
+model TurnLog {
+  id            String      @id @default(uuid())
+  sessionId     String      @map("session_id")
+  turnNumber    Int         @map("turn_number")
+  userMessage   String      @map("user_message") @db.Text
+  rawResponse   String      @map("raw_response") @db.Text
+  parseStatus   ParseStatus @map("parse_status")
+  parseError    String?     @map("parse_error")
+  systemMessage String      @map("system_message") @db.Text
+  model         String
+  promptVersion String      @map("prompt_version")
+  latencyMs     Int         @map("latency_ms")
+  tokenUsage    Json?       @map("token_usage")
+  retryCount    Int         @default(0) @map("retry_count")
+  metadata      Json?       @map("metadata")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  session ScreeningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, turnNumber], map: "uq_turnlog_session_turn")
+  @@index([parseStatus], map: "idx_turnlog_parse_status")
+  @@index([model], map: "idx_turnlog_model")
+  @@map("turn_logs")
+}
+
+model EvaluationFeedback {
+  id            String        @id @default(uuid())
+  sessionId     String        @map("session_id")
+  turnNumber    Int           @map("turn_number")
+  evaluatorType EvaluatorType @map("evaluator_type")
+  isAccurate    Boolean       @map("is_accurate")
+  notes         String?       @db.Text
+  promptVersion String        @map("prompt_version")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  session ScreeningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, turnNumber, evaluatorType])
+  @@index([promptVersion], map: "idx_feedback_prompt_version")
+  @@index([evaluatorType, isAccurate], map: "idx_feedback_evaluator_accuracy")
+  @@map("evaluation_feedbacks")
+}
+
+// ==================== Screening Chat V2 Models ====================
+
+model ScreeningResult {
+  id                   String     @id @default(uuid()) @map("id")
+  sessionId            String     @unique @map("session_id")
+  riskLevel            RiskLevel  @map("risk_level")
+  gejalaCount          Int        @map("gejala_count")
+  faktorCount          Int        @map("faktor_count")
+  scoringState         Json       @map("scoring_state")
+  perception           Perception @map("perception")
+  partial              Boolean    @default(false) @map("partial")
+  aiConclusion         String?    @map("ai_conclusion")
+  aiPerceptionResponse String?    @map("ai_perception_response")
+  aiRecommendation     String?    @map("ai_recommendation")
+  aiSuggestion         String?    @map("ai_suggestion")
+  createdAt            DateTime   @default(now()) @map("created_at")
+
+  session ScreeningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("screening_result")
+}
+
+model Checkpoint {
+  sessionId      String   @id @map("session_id")
+  summary        Json     @map("summary")
+  contextNote    String?  @map("context_note")
+  resultRevision Int      @map("result_revision")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  session ScreeningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("checkpoint")
+}
+
+model UnmappedPhrase {
+  id           String   @id @default(uuid()) @map("id")
+  phrase       String   @unique @map("phrase")
+  categoryHint String?  @map("category_hint")
+  frequency    Int      @default(1) @map("frequency")
+  reviewed     Boolean  @default(false) @map("reviewed")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("unmapped_phrase")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid()) @map("id")
+  sessionId String?  @map("session_id")
+  event     String   @map("event")
+  detail    Json?    @map("detail")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([sessionId], map: "idx_audit_session")
+  @@index([event, createdAt], map: "idx_audit_event")
+  @@map("audit_log")
+}
+
+// ==================== Phase 2 — do not migrate ====================
+// These models are defined for TypeScript type generation via `prisma generate`.
+// Do NOT run `prisma migrate` for these tables until Phase 2 begins.
+// Relations to MVP models are intentionally omitted to keep MVP models clean.
+
+model User {
+  id             String         @id @default(uuid()) @map("id")
+  supabaseId     String         @unique @map("supabase_id")
+  email          String?        @unique @map("email")
+  name           String?        @map("name")
+  role           Role           @default(USER) @map("role")
+  approvalStatus ApprovalStatus @default(PENDING) @map("approval_status")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  deletedAt      DateTime?      @map("deleted_at")
+
+  reviews       DoctorReview[]
+  respondents   Respondent[]
+  cadreLocation CadreLocation?
+
+  @@index([role, approvalStatus], map: "idx_user_role_approval")
+  @@map("user")
+}
+
+model DoctorReview {
+  id                 String        @id @default(uuid()) @map("id")
+  sessionId          String        @unique @map("session_id")
+  doctorId           String        @map("doctor_id")
+  confirmedRiskLevel RiskLevel?    @map("confirmed_risk_level")
+  action             ReviewAction? @map("action")
+  notes              String?       @map("notes")
+  overrideSuggestion String?       @map("override_suggestion")
+  createdAt          DateTime      @default(now()) @map("created_at")
+
+  doctor User @relation(fields: [doctorId], references: [id])
+
+  @@index([doctorId], map: "idx_review_doctor")
+  @@map("doctor_review")
+}
+
+model Respondent {
+  id        String    @id @default(uuid()) @map("id")
+  cadreId   String    @map("cadre_id")
+  name      String    @map("name")
+  age       Int?      @map("age")
+  gender    String?   @map("gender")
+  notes     String?   @map("notes")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  cadre User @relation(fields: [cadreId], references: [id])
+
+  @@index([cadreId], map: "idx_respondent_cadre")
+  @@map("respondent")
+}
+
+model ScreeningImage {
+  id              String   @id @default(uuid()) @map("id")
+  sessionId       String   @map("session_id")
+  storagePath     String   @map("storage_path")
+  fileName        String   @map("file_name")
+  mimeType        String   @map("mime_type")
+  fileSize        Int      @map("file_size")
+  analyzed        Boolean  @default(false) @map("analyzed")
+  detectedLesions Boolean? @map("detected_lesions")
+  lesionTypes     Json?    @map("lesion_types")
+  confidence      Float?   @map("confidence")
+  conclusion      String?  @map("conclusion")
+  rawResult       Json?    @map("raw_result")
+  consentGiven    Boolean  @default(false) @map("consent_given")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([sessionId], map: "idx_image_session")
+  @@map("screening_image")
+}
+
+model CadreLocation {
+  id                String   @id @default(uuid()) @map("id")
+  cadreId           String   @unique @map("cadre_id")
+  provinceId        String   @map("province_id")
+  provinceName      String   @map("province_name")
+  regencyId         String   @map("regency_id")
+  regencyName       String   @map("regency_name")
+  districtId        String?  @map("district_id")
+  districtName      String?  @map("district_name")
+  villageId         String?  @map("village_id")
+  villageName       String?  @map("village_name")
+  institutionName   String?  @map("institution_name")
+  residenceDuration String?  @map("residence_duration")
+  roomOccupants     Int?     @map("room_occupants")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  cadre User @relation(fields: [cadreId], references: [id])
+
+  @@map("cadre_location")
+}

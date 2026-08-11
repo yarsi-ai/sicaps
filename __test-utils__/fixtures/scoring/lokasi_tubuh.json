@@ -1,0 +1,45 @@
+[
+  {
+    "name": "sela jari matches finger webs with score 2",
+    "locale": "id",
+    "category": "lokasi_tubuh",
+    "input": [{ "keyword": "sela jari", "confidence": "high" }],
+    "expected": {
+      "score": 2,
+      "matchedPatterns": ["sela jari"]
+    }
+  },
+  {
+    "name": "ketiak matches body part with score 1",
+    "locale": "id",
+    "category": "lokasi_tubuh",
+    "input": [{ "keyword": "ketiak", "confidence": "high" }],
+    "expected": {
+      "score": 1,
+      "matchedPatterns": ["ketiak"]
+    }
+  },
+  {
+    "name": "seluruh badan matches whole body with score 0",
+    "locale": "id",
+    "category": "lokasi_tubuh",
+    "input": [{ "keyword": "seluruh badan", "confidence": "high" }],
+    "expected": {
+      "score": 0,
+      "matchedPatterns": ["seluruh badan"]
+    }
+  },
+  {
+    "name": "multiple locations accumulate scores",
+    "locale": "id",
+    "category": "lokasi_tubuh",
+    "input": [
+      { "keyword": "sela jari", "confidence": "high" },
+      { "keyword": "pergelangan", "confidence": "medium" }
+    ],
+    "expected": {
+      "score": 3,
+      "matchedPatterns": ["sela jari", "pergelangan"]
+    }
+  }
+]

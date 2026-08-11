@@ -1,0 +1,32 @@
+[
+  {
+    "name": "malam matches nocturnal pattern with score 2",
+    "locale": "id",
+    "category": "waktu",
+    "input": [{ "keyword": "tiap malam", "confidence": "high" }],
+    "expected": {
+      "score": 2,
+      "matchedPatterns": ["tiap malam"]
+    }
+  },
+  {
+    "name": "makin parah malam matches worsening-at-night with score 2",
+    "locale": "id",
+    "category": "waktu",
+    "input": [{ "keyword": "makin parah malam", "confidence": "high" }],
+    "expected": {
+      "score": 2,
+      "matchedPatterns": ["makin parah malam"]
+    }
+  },
+  {
+    "name": "sepanjang hari matches all-day pattern with score 1",
+    "locale": "id",
+    "category": "waktu",
+    "input": [{ "keyword": "sepanjang hari", "confidence": "medium" }],
+    "expected": {
+      "score": 1,
+      "matchedPatterns": ["sepanjang hari"]
+    }
+  }
+]

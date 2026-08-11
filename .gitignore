@@ -1,0 +1,97 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# testing
+coverage/
+
+# next.js
+.next/
+out/
+
+# production
+build/
+dist/
+
+# misc
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# env files
+.env
+.env*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.vercel
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# private files
+.private/
+
+# VS Code (uncomment if team wants to share settings)
+.vscode/
+
+# logs
+*.log
+
+# cache
+.cache/
+.turbo/
+
+# database (local)
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+prisma/*.db*
+
+# Supabase CLI
+supabase/.temp/
+supabase/.branches/
+
+# testing artifacts
+playwright-report/
+test-results/
+.nyc_output/
+
+# Storybook
+storybook-static/
+
+# Kiro IDE
+.kiro/
+
+# internal docs
+docs/features/
+docs/guides/
+docs/issues/
+docs/phase-*/
+
+.kiro/
+docs/features/
+docs/guides/
+docs/issues/
+docs/phase-*/
+semantic-review/

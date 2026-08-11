@@ -1,0 +1,36 @@
+[
+  {
+    "name": "pondok matches boarding school risk with score 2",
+    "locale": "id",
+    "category": "faktor_risiko",
+    "input": [{ "keyword": "pondok", "confidence": "high" }],
+    "expected": {
+      "score": 2,
+      "matchedPatterns": ["pondok"]
+    }
+  },
+  {
+    "name": "sekamar rame matches crowded room with score 2",
+    "locale": "id",
+    "category": "faktor_risiko",
+    "input": [{ "keyword": "sekamar rame", "confidence": "high" }],
+    "expected": {
+      "score": 2,
+      "matchedPatterns": ["sekamar rame"]
+    }
+  },
+  {
+    "name": "multiple risk factors accumulate",
+    "locale": "id",
+    "category": "faktor_risiko",
+    "input": [
+      { "keyword": "pondok", "confidence": "high" },
+      { "keyword": "tukeran baju", "confidence": "medium" },
+      { "keyword": "jarang mandi", "confidence": "high" }
+    ],
+    "expected": {
+      "score": 6,
+      "matchedPatterns": ["pondok", "tukeran baju", "jarang mandi"]
+    }
+  }
+]

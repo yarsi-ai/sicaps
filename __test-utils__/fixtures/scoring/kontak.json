@@ -1,0 +1,32 @@
+[
+  {
+    "name": "temen sekamar matches roommate contact with score 2",
+    "locale": "id",
+    "category": "kontak",
+    "input": [{ "keyword": "temen sekamar", "confidence": "high" }],
+    "expected": {
+      "score": 2,
+      "matchedPatterns": ["temen sekamar"]
+    }
+  },
+  {
+    "name": "banyak yang gatal matches group infection with score 2",
+    "locale": "id",
+    "category": "kontak",
+    "input": [{ "keyword": "banyak yang gatal", "confidence": "high" }],
+    "expected": {
+      "score": 2,
+      "matchedPatterns": ["banyak yang gatal"]
+    }
+  },
+  {
+    "name": "satu kasur matches shared bedding with score 2",
+    "locale": "id",
+    "category": "kontak",
+    "input": [{ "keyword": "satu kasur", "confidence": "medium" }],
+    "expected": {
+      "score": 2,
+      "matchedPatterns": ["satu kasur"]
+    }
+  }
+]

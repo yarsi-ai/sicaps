@@ -1,0 +1,195 @@
+/**
+ * SICAPS Theme: Purple
+ * Design direction v1 — vibrant purple/lavender palette
+ * Mascot: Capi (rounded face character)
+ * Source: docs/phase-1/design-token.html, DESIGN_SPEC.md §2
+ */
+
+@theme {
+  /* Brand */
+  --color-brand-primary: #6C4DF6;
+  --color-brand-primary-soft: #8A6DFF;
+  --color-brand-ink: #211A3B;
+  --color-brand-secondary: #8A6DFF;
+  --color-brand-secondary-light: #A78BFA;
+
+  /* Accent */
+  --color-accent-lime: #C6F24E;
+  --color-accent-sun: #FFC93C;
+  --color-accent-pink: #FF6BAE;
+  --color-accent-amber: #C6F24E;
+  --color-accent-danger: #FF6BAE;
+  --color-accent-blush: #FF6BAE;
+
+  /* Surface */
+  --color-surface-app: #F6F3FF;
+  --color-surface-lavender: #F1EEFF;
+  --color-surface-card: #FFFFFF;
+  --color-surface-chip: #DDD5FF;
+  --color-surface-alt: #F1EEFF;
+  --color-surface-outer: #ECE8FF;
+  --color-surface-bubble-bot: #FFFFFF;
+  --color-surface-intro: #f3f0ff;
+
+  /* Text */
+  --color-text-strong: #211A3B;
+  --color-text-body: #5D5680;
+  --color-text-muted: #8A83A8;
+  --color-text-faint: #A99FD6;
+  --color-text-cream: #F6F3FF;
+
+  /* Border */
+  --color-border-subtle: #DDD5FF;
+  --color-border-strong: #DDD5FF;
+  --color-border-dashed: #C4B8F0;
+
+  /* Risk levels */
+  --color-risk-high: #FF6BAE;
+  --color-risk-high-soft: #FFE1EE;
+  --color-risk-high-text: #FFFFFF;
+  --color-risk-high-bg: #FF6BAE;
+  --color-risk-moderate: #FFC93C;
+  --color-risk-moderate-soft: #FFF3D6;
+  --color-risk-moderate-text: #4A3208;
+  --color-risk-medium-bg: #FFC93C;
+  --color-risk-medium-text: #4A3208;
+  --color-risk-low: #C6F24E;
+  --color-risk-low-soft: #EEF8D6;
+  --color-risk-low-text: #2F3B17;
+  --color-risk-low-bg: #C6F24E;
+
+  /* Contextual surfaces */
+  --color-amber-wash-bg: #FFF3D6;
+  --color-amber-wash-border: #FFC93C;
+  --color-amber-wash-text: #B8860B;
+  --color-hist-ai-bg: #F1EEFF;
+  --color-hist-ai-text: #6C4DF6;
+  --color-hist-q-bg: #EEF8D6;
+  --color-hist-q-text: #5A7A0A;
+
+  /* Typography */
+  --font-display: var(--font-fredoka), sans-serif;
+  --font-sans: var(--font-plus-jakarta-sans), sans-serif;
+
+  /* Border radius */
+  --radius-card-icon: 12px;
+  --radius-card: 16px;
+  --radius-button: 18px;
+  --radius-bubble: 20px;
+  --radius-input: 24px;
+  --radius-pill: 100px;
+  --radius-icon: 12px;
+
+  /* Sticker shadows — adapted for purple theme */
+  --color-shadow-mascot: #DDD5FF;
+  --color-shadow-soft: rgba(108, 77, 246, 0.12);
+  --color-dot-grid: rgba(108, 77, 246, 0.045);
+  --shadow-sticker-sm: 0 2px 0 #DDD5FF;
+  --shadow-sticker-md: 0 3px 0 #DDD5FF;
+  --shadow-sticker-lg: 0 4px 0 #DDD5FF;
+  --shadow-sticker-mascot: 0 6px 0 #DDD5FF;
+
+  /* Animation */
+  --animate-sc-typing: sc-typing 0.6s ease-in-out infinite;
+  --animate-sc-wave: sc-wave 1.2s ease-in-out infinite;
+  --animate-sc-pop: sc-pop 0.3s ease-out;
+  --animate-sc-blink: sc-blink 1.2s ease-in-out infinite;
+  --animate-sc-send-glow: sc-send-glow 2s ease-in-out infinite;
+  --animate-sc-tts-pulse: sc-tts-pulse 1.5s ease-in-out infinite;
+  --animate-sc-twinkle: sc-twinkle 2s ease-in-out infinite;
+}
+
+@keyframes sc-typing {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@keyframes sc-wave {
+  0%,
+  100% {
+    transform: scaleY(0.4);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes sc-pop {
+  0% {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes sc-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes sc-send-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(108, 77, 246, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 9px rgba(108, 77, 246, 0);
+  }
+}
+
+@keyframes sc-tts-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px rgba(108, 77, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(108, 77, 246, 0.7);
+  }
+}
+
+@keyframes sc-twinkle {
+  0%,
+  100% {
+    opacity: 0.9;
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.82) rotate(12deg);
+  }
+}
+
+/**
+ * Dark mode: intentionally identical to light mode.
+ *
+ * SICAPS does not have a designed dark theme — the purple palette above is
+ * used regardless of OS/browser color-scheme preference. This empty rule
+ * (plus `color-scheme: light` in layout.tsx metadata) tells browsers that
+ * respect the CSS spec (Chrome, Firefox, Safari) that this page has no dark
+ * variant, so they should render it as-is instead of guessing.
+ *
+ * Samsung Internet does not honor `prefers-color-scheme`/`color-scheme` and
+ * force-inverts colors regardless — users on it must disable "Website dark
+ * theme" in Samsung Internet settings to see the intended design.
+ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* No overrides — dark mode uses the same values as light mode. */
+  }
+}
