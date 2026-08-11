@@ -2,7 +2,7 @@
 
 > **Scope:** Rules for all developers and AI agents working on this codebase.  
 > **Stack:** Next.js 16 (App Router), TypeScript, Tailwind CSS, Prisma, Supabase  
-> **Last updated:** 23 Juni 2026
+> **Last updated:** June 23, 2026
 
 ---
 
@@ -320,7 +320,7 @@ describe('calculateCategoryScore', () => {
 ### 9.3 What NOT To Test (MVP)
 
 - Radix primitives (tested upstream — Dialog, Select, Toast)
-- Pure visual components tanpa logic (Button styling, Card layout)
+- Pure visual components without logic (Button styling, Card layout)
 - React component rendering (UI volatile, iterate fast)
 - Tailwind classes
 - Static pages

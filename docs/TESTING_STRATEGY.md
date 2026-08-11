@@ -3,7 +3,7 @@
 > **Reference:** [CODING_STANDARDS.md](./CODING_STANDARDS.md) | [TECHNICAL_SPEC.md](./TECHNICAL_SPEC.md)  
 > **Focus:** LLM output validation, scoring accuracy, chat flow regression  
 > **Tools:** Vitest, Playwright, MSW  
-> **Last updated:** 23 Juni 2026
+> **Last updated:** June 23, 2026
 
 ---
 

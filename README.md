@@ -1,35 +1,35 @@
 # SICAPS
 
-**Sistem Cerdas AI untuk Pemeriksaan Skabies**
+**Smart AI System for Scabies Screening**
 
-Web-based chatbot yang melakukan skrining awal skabies melalui percakapan interaktif — mengekstrak keyword klinis, menghitung skor risiko, dan memberikan rekomendasi yang dipersonalisasi.
-
----
-
-## Tentang SICAPS
-
-Skabies merupakan penyakit kulit menular yang sangat umum ditemukan di lingkungan padat seperti pondok pesantren. Keterbatasan akses terhadap tenaga medis menyebabkan banyak kasus tidak terdeteksi atau terlambat ditangani.
-
-SICAPS hadir sebagai solusi skrining awal yang mudah diakses. Melalui percakapan natural dengan chatbot AI, sistem ini:
-
-1. **Menggali gejala** secara adaptive (intensitas gatal, waktu, lokasi tubuh, riwayat kontak, lesi kulit, faktor risiko)
-2. **Mengekstrak keyword klinis** dari jawaban user menggunakan LLM
-3. **Menghitung skor risiko** secara deterministik di backend (bukan oleh AI)
-4. **Menghasilkan output** berupa level risiko (Tinggi/Sedang/Rendah), respons persepsi, rekomendasi aksi, dan saran penanganan personal
-
-Proyek ini merupakan bagian dari penelitian dr. Widjayanti di Universitas YARSI, dengan target akurasi skrining ≥ 80% dibandingkan diagnosis klinis dokter.
+Web-based chatbot that performs preliminary scabies screening through interactive conversation — extracting clinical keywords, calculating risk scores, and providing personalized recommendations.
 
 ---
 
-## Features (MVP — Fase 1)
+## About SICAPS
 
-- Chat AI interaktif dengan adaptive conversation flow (bukan rigid Q&A)
+Scabies is a highly contagious skin disease commonly found in high-density environments such as Islamic boarding schools (pesantren). Limited access to medical professionals causes many cases to go undetected or receive delayed treatment.
+
+SICAPS provides an accessible preliminary screening solution. Through natural conversation with an AI chatbot, the system:
+
+1. **Explores symptoms** adaptively (itch intensity, timing, body locations, contact history, skin lesions, risk factors)
+2. **Extracts clinical keywords** from user responses using LLM
+3. **Calculates risk scores** deterministically on the backend (not by AI)
+4. **Generates output** including risk level (High/Moderate/Low), perception response, action recommendations, and personalized care advice
+
+This project is part of dr. Widjayanti's research at YARSI University, targeting screening accuracy of ≥80% compared to clinical diagnosis by physicians.
+
+---
+
+## Features (MVP — Phase 1)
+
+- Interactive AI chat with adaptive conversation flow (not rigid Q&A)
 - Voice input (Speech-to-Text) + voice output (Text-to-Speech) via Web Speech API
-- Keyword extraction oleh LLM + scoring engine deterministik di backend
-- Questionnaire mode sebagai fallback jika AI offline
+- Keyword extraction by LLM + deterministic scoring engine on backend
+- Questionnaire mode as fallback when AI is offline
 - Bilingual — Bahasa Indonesia + English
-- Risk level output + 4 bagian hasil personalisasi
-- PDF download hasil screening (dengan header YARSI)
+- Risk level output + 4-part personalized results
+- PDF download of screening results (with YARSI header)
 - Shareable result link
 - Anonymous screening (no login required)
 
@@ -69,19 +69,19 @@ graph TD
     Backend -->|"LLM API"| LLM["LLM Provider<br/>(switchable)"]
 ```
 
-Key design decision: **LLM hanya extract keyword, backend yang hitung skor.** Ini memastikan scoring deterministik dan reproducible untuk keperluan riset.
+Key design decision: **LLM only extracts keywords; backend calculates scores.** This ensures deterministic and reproducible scoring for research purposes.
 
 ---
 
 ## Getting Started
 
-> ⚠️ Project sedang dalam fase dokumentasi dan desain. Implementasi source code belum dimulai.
+> ⚠️ Project is currently in documentation and design phase. Source code implementation has not started.
 
 ### Prerequisites
 
 - Node.js 18+
-- npm atau yarn
-- [Ollama](https://ollama.com/) (untuk local LLM development)
+- npm or yarn
+- [Ollama](https://ollama.com/) (for local LLM development)
 - Supabase account (database)
 
 ### Setup (once implementation begins)
@@ -94,7 +94,7 @@ npm install
 
 # 2. Configure environment
 cp .env.example .env.local
-# Edit .env.local — lihat docs/phase-1/LLM_INTEGRATION.md untuk detail
+# Edit .env.local — see docs/phase-1/LLM_INTEGRATION.md for details
 
 # 3. Setup database
 npx prisma generate
@@ -117,18 +117,18 @@ npm run dev
 | `LLM_API_KEY`  | Provider API key                               |
 | `LLM_MODEL`    | Model identifier (default: `qwen2.5:7b`)       |
 
-Full list: lihat `.env.example` (akan tersedia saat implementation dimulai).
+Full list: see `.env.example` (will be available when implementation starts).
 
 ---
 
 ## Documentation
 
-Dokumentasi lengkap tersedia di [`docs/`](./docs/README.md):
+Complete documentation available at [`docs/`](./docs/README.md):
 
 | Category      | Documents                                                                                  |
 | ------------- | ------------------------------------------------------------------------------------------ |
 | **Product**   | [PRD](./docs/PRD.md) — user stories, scoring rules, roadmap                                |
-| **Technical** | [Technical Spec](./docs/phase-1/TECHNICAL_SPEC.md) — architecture, project structure       |
+| **Technical** | [Technical Spec](./docs/TECHNICAL_SPEC.md) — architecture, project structure              |
 | **AI Bot**    | [AI Bot Spec](./docs/phase-1/AI_BOT_SPEC.md) — persona, conversation flow, extraction      |
 | **Scoring**   | [Scoring Engine](./docs/phase-1/SCORING_ENGINE_SPEC.md) — matching algorithm, keyword pool |
 | **LLM**       | [LLM Integration](./docs/phase-1/LLM_INTEGRATION.md) — streaming, fallback, cost           |
@@ -140,28 +140,28 @@ Dokumentasi lengkap tersedia di [`docs/`](./docs/README.md):
 
 ## Development Roadmap
 
-### Fase 1 — MVP _(current)_
+### Phase 1 — MVP _(current)_
 
-Skrining anonim, chat AI + questionnaire fallback, bilingual (ID/EN). Deploy ke Vercel + Supabase.
+Anonymous screening, AI chat + questionnaire fallback, bilingual (ID/EN). Deploy to Vercel + Supabase.
 
-### Fase 2 — Auth & Roles
+### Phase 2 — Auth & Roles
 
-Login/register, role management (Admin, Dokter, Kader), dashboard per role, image-based assessment (custom CV model).
+Login/register, role management (Admin, Doctor, Cadre), role-based dashboards, image-based assessment (custom CV model).
 
-### Fase 3 — Enhancement
+### Phase 3 — Enhancement
 
-Statistik real-time, peta sebaran interaktif, notifikasi push, PWA offline, migrasi ke self-deployed LLM.
+Real-time statistics, interactive outbreak maps, push notifications, PWA offline support, migration to self-deployed LLM.
 
 ---
 
 ## Contributing
 
-Project ini saat ini dikembangkan dalam konteks riset internal. Kontribusi melalui koordinasi dengan tim.
+This project is currently developed within an internal research context. Contributions through coordination with the team.
 
-Sebelum berkontribusi, baca:
+Before contributing, read:
 
 - [Coding Standards](./docs/CODING_STANDARDS.md) — architecture rules, naming, testing, git conventions
-- [Documentation Index](./docs/README.md) — overview seluruh dokumentasi
+- [Documentation Index](./docs/README.md) — overview of all documentation
 
 ### Git Conventions
 
@@ -175,15 +175,15 @@ docs(readme): add getting started section
 
 ## License
 
-TBD — Keputusan lisensi berada di bawah kewenangan Universitas YARSI.
+TBD — License decision is under YARSI University authority.
 
 ---
 
 ## Authors
 
-- **dr. Widjayanti** — Research Lead, Universitas YARSI
+- **dr. Widjayanti** — Research Lead, YARSI University
 - **[Developer]** — Software Engineer
 
 ---
 
-_SICAPS — Universitas YARSI, 2026_
+_SICAPS — YARSI University, 2026_

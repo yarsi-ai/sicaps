@@ -2,8 +2,8 @@
 
 > **Reference:** [TECHNICAL_SPEC.md](./TECHNICAL_SPEC.md) | [TESTING_STRATEGY.md](./TESTING_STRATEGY.md)  
 > **Platform:** Vercel (free tier) + Supabase PostgreSQL  
-> **Phase:** Fase 1 (MVP)  
-> **Last updated:** Juli 2026
+> **Phase:** Phase 1 (MVP)  
+> **Last updated:** July 2026
 
 ---
 
@@ -23,7 +23,7 @@
 
 ## 2. Supabase Setup
 
-Supabase dipakai **hanya sebagai PostgreSQL host**. Tidak ada Supabase SDK, Auth, RLS, Storage, atau Realtime. Koneksi langsung via Prisma ORM.
+Supabase is used **only as a PostgreSQL host**. No Supabase SDK, Auth, RLS, Storage, or Realtime. Direct connection via Prisma ORM.
 
 ### 2.1 Projects
 
@@ -72,7 +72,7 @@ npx prisma migrate deploy
 2. Run migration
 3. Deploy code that only uses new schema
 
-**Catatan penting — `DIRECT_URL` di Vercel:** `prisma migrate deploy` butuh koneksi direct/session-pooled ke database (`DIRECT_URL` di `schema.prisma`), berbeda dari `DATABASE_URL` yang dipakai app runtime (transaction pooler, port 6543). Supabase's direct connection (port 5432) requires IPv6, which Vercel's build environment doesn't support without a paid add-on — jika `DIRECT_URL` diarahkan ke direct connection biasa, build akan gagal dengan error `P1001: Can't reach database server`. Solusinya: set `DIRECT_URL` ke **Session Pooler** connection string dari Supabase (juga port 5432, tapi IPv4-compatible), bukan Direct Connection string.
+**Important note — `DIRECT_URL` on Vercel:** `prisma migrate deploy` requires a direct/session-pooled connection to the database (`DIRECT_URL` in `schema.prisma`), different from `DATABASE_URL` used by app runtime (transaction pooler, port 6543). Supabase's direct connection (port 5432) requires IPv6, which Vercel's build environment doesn't support without a paid add-on — if `DIRECT_URL` points to the regular direct connection, build will fail with error `P1001: Can't reach database server`. Solution: set `DIRECT_URL` to **Session Pooler** connection string from Supabase (also port 5432, but IPv4-compatible), not the Direct Connection string.
 
 ---
 
@@ -85,28 +85,28 @@ Source of truth: `src/lib/env.ts` (Zod schema).
 | Variable                 | Required | Scope  | Description                                                                                         |
 | ------------------------ | -------- | ------ | --------------------------------------------------------------------------------------------------- |
 | `DATABASE_URL`           | ✅       | Server | PostgreSQL connection string (Supabase or local)                                                    |
-| `DIRECT_URL`             | Opsional | Server | Direct/session-pooled connection, dipakai `prisma migrate deploy`. Lihat catatan di 2.4.            |
+| `DIRECT_URL`             | Optional | Server | Direct/session-pooled connection, used by `prisma migrate deploy`. See note in 2.4.                 |
 | `LLM_BASE_URL`           | ✅       | Server | LLM provider endpoint                                                                               |
 | `LLM_API_KEY`            | ✅       | Server | LLM authentication token. Format: `hf_xxx` (HuggingFace), `gsk_xxx` (Groq)                          |
-| `LLM_MODEL`              | Opsional | Server | Model identifier (default: `qwen2.5:7b`)                                                            |
+| `LLM_MODEL`              | Optional | Server | Model identifier (default: `qwen2.5:7b`)                                                            |
 | `NEXT_PUBLIC_APP_URL`    | ✅       | Client | Base URL for shareable links                                                                        |
-| `NEXT_PUBLIC_THEME`      | Opsional | Client | UI theme name (default: `earthy`). Available: `earthy`, `purple`                                    |
-| `NODE_ENV`               | Opsional | Server | `development` / `production` / `test` (default: `development`)                                      |
-| `LLM_FALLBACK_URL`       | Opsional | Server | Fallback LLM provider endpoint. Jika diset, `LLM_FALLBACK_KEY` dan `LLM_FALLBACK_MODEL` juga wajib. |
-| `LLM_FALLBACK_KEY`       | Opsional | Server | Fallback LLM authentication token                                                                   |
-| `LLM_FALLBACK_MODEL`     | Opsional | Server | Fallback model identifier                                                                           |
-| `LLM_TEMPERATURE_CHAT`   | Opsional | Server | Chat turn temperature (default: `0.3`)                                                              |
-| `LLM_TEMPERATURE_OUTPUT` | Opsional | Server | Output generation temperature (default: `0.6`)                                                      |
-| `LLM_MAX_TOKENS_CHAT`    | Opsional | Server | Chat turn max tokens (default: `500`)                                                               |
-| `LLM_MAX_TOKENS_OUTPUT`  | Opsional | Server | Output generation max tokens (default: `800`)                                                       |
-| `LLM_TOP_P`              | Opsional | Server | Nucleus sampling (default: `0.9`)                                                                   |
-| `LLM_TIMEOUT_MS`         | Opsional | Server | LLM request timeout in ms (default: `12000`)                                                        |
-| `LLM_RETRY_TIMEOUT_MS`   | Opsional | Server | Retry attempt timeout in ms (default: `12000`)                                                      |
-| `LLM_HEALTH_TIMEOUT_MS`  | Opsional | Server | Health probe timeout in ms (default: `5000`)                                                        |
-| `PLAYGROUND_GROQ_KEY`    | Opsional | Server | Groq API key untuk LLM Playground                                                                   |
-| `PLAYGROUND_HF_KEY`      | Opsional | Server | HuggingFace key untuk LLM Playground                                                                |
-| `PLAYGROUND_GEMINI_KEY`  | Opsional | Server | Gemini API key untuk LLM Playground                                                                 |
-| `PLAYGROUND_OLLAMA_URL`  | Opsional | Server | Ollama URL untuk LLM Playground                                                                     |
+| `NEXT_PUBLIC_THEME`      | Optional | Client | UI theme name (default: `earthy`). Available: `earthy`, `purple`                                    |
+| `NODE_ENV`               | Optional | Server | `development` / `production` / `test` (default: `development`)                                      |
+| `LLM_FALLBACK_URL`       | Optional | Server | Fallback LLM provider endpoint. If set, `LLM_FALLBACK_KEY` and `LLM_FALLBACK_MODEL` also required.  |
+| `LLM_FALLBACK_KEY`       | Optional | Server | Fallback LLM authentication token                                                                   |
+| `LLM_FALLBACK_MODEL`     | Optional | Server | Fallback model identifier                                                                           |
+| `LLM_TEMPERATURE_CHAT`   | Optional | Server | Chat turn temperature (default: `0.3`)                                                              |
+| `LLM_TEMPERATURE_OUTPUT` | Optional | Server | Output generation temperature (default: `0.6`)                                                      |
+| `LLM_MAX_TOKENS_CHAT`    | Optional | Server | Chat turn max tokens (default: `500`)                                                               |
+| `LLM_MAX_TOKENS_OUTPUT`  | Optional | Server | Output generation max tokens (default: `800`)                                                       |
+| `LLM_TOP_P`              | Optional | Server | Nucleus sampling (default: `0.9`)                                                                   |
+| `LLM_TIMEOUT_MS`         | Optional | Server | LLM request timeout in ms (default: `12000`)                                                        |
+| `LLM_RETRY_TIMEOUT_MS`   | Optional | Server | Retry attempt timeout in ms (default: `12000`)                                                      |
+| `LLM_HEALTH_TIMEOUT_MS`  | Optional | Server | Health probe timeout in ms (default: `5000`)                                                        |
+| `PLAYGROUND_GROQ_KEY`    | Optional | Server | Groq API key for LLM Playground                                                                     |
+| `PLAYGROUND_HF_KEY`      | Optional | Server | HuggingFace key for LLM Playground                                                                  |
+| `PLAYGROUND_GEMINI_KEY`  | Optional | Server | Gemini API key for LLM Playground                                                                   |
+| `PLAYGROUND_OLLAMA_URL`  | Optional | Server | Ollama URL for LLM Playground                                                                       |
 
 > **Note:** `LLM_FALLBACK_*` variabel bersifat all-or-nothing. Jika salah satu diset, ketiga-tiganya wajib ada.
 
@@ -291,7 +291,7 @@ Build order:
 
 ### 5.1 Implementation
 
-SICAPS menggunakan **in-memory sliding window rate limiting** — tidak ada external Redis dependency.
+SICAPS uses **in-memory sliding window rate limiting** — no external Redis dependency.
 
 ```typescript
 // lib/rate-limiter.ts — in-memory, per serverless instance
@@ -317,7 +317,7 @@ Rate limiter runs in-process — no external dependency that can fail. Limits re
 
 ### 5.4 Phase 2 Consideration
 
-Untuk traffic lebih tinggi di production, pertimbangkan migrasi ke **Upstash Redis** (persistent rate limiting across instances). Env variables `UPSTASH_REDIS_REST_URL` dan `UPSTASH_REDIS_REST_TOKEN` sudah disiapkan di docs tapi belum diimplementasi.
+For higher traffic in production, consider migrating to **Upstash Redis** (persistent rate limiting across instances). Environment variables `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are prepared in docs but not yet implemented.
 
 ---
 
@@ -331,8 +331,8 @@ flowchart LR
     B --> C["Vercel:<br/>preview deploy"]
     C --> D["Open PR →<br/>E2E tests run"]
     D --> E{"All checks<br/>green?"}
-    E -->|Ya| F["Merge to main"]
-    E -->|Tidak| G["Fix & re-push"]
+    E -->|Yes| F["Merge to main"]
+    E -->|No| G["Fix & re-push"]
     G --> B
     F --> H["Vercel: auto-deploy<br/>production<br/>(migrate + build)"]
     H --> I["UptimeRobot:<br/>confirm /api/health"]
