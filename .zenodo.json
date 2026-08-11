@@ -1,0 +1,50 @@
+{
+  "title": "SICAPS - Smart AI System for Scabies Screening",
+  "description": "Web-based chatbot for preliminary scabies screening through interactive conversation. SICAPS extracts clinical keywords from user responses, calculates risk scores using a deterministic scoring engine, and provides personalized recommendations. Designed for santri (students) at Islamic boarding schools (pesantren) in Indonesia, where scabies prevalence is high due to communal living conditions.",
+  "creators": [
+    {
+      "name": "Wijayanti, Erlina",
+      "affiliation": "YARSI University, Jakarta, Indonesia",
+      "orcid": "0000-0001-8081-9902"
+    },
+    {
+      "name": "Muhana, Mufid Farhan",
+      "affiliation": "YARSI University, Jakarta, Indonesia",
+      "orcid": "0009-0006-8110-1162"
+    }
+  ],
+  "contributors": [
+    {
+      "name": "YARSI University",
+      "type": "HostingInstitution"
+    }
+  ],
+  "keywords": [
+    "scabies",
+    "screening",
+    "chatbot",
+    "artificial intelligence",
+    "large language model",
+    "LLM",
+    "healthcare",
+    "dermatology",
+    "Indonesia",
+    "pesantren",
+    "Islamic boarding school",
+    "public health",
+    "digital health",
+    "mHealth"
+  ],
+  "license": "MIT",
+  "upload_type": "software",
+  "access_right": "open",
+  "language": "eng",
+  "communities": [
+    {
+      "identifier": "zenodo"
+    }
+  ],
+  "grants": [],
+  "related_identifiers": [],
+  "references": []
+}

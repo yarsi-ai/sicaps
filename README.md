@@ -17,7 +17,7 @@ SICAPS provides an accessible preliminary screening solution. Through natural co
 3. **Calculates risk scores** deterministically on the backend (not by AI)
 4. **Generates output** including risk level (High/Moderate/Low), perception response, action recommendations, and personalized care advice
 
-This project is part of dr. Widjayanti's research at YARSI University, targeting screening accuracy of ≥80% compared to clinical diagnosis by physicians.
+This project is part of dr. Erlina Wijayanti's research at YARSI University, targeting screening accuracy of ≥80% compared to clinical diagnosis by physicians.
 
 ---
 
@@ -88,7 +88,7 @@ Key design decision: **LLM only extracts keywords; backend calculates scores.** 
 
 ```bash
 # 1. Clone & install
-git clone <repo-url>
+git clone https://github.com/yarsi-ai/sicaps.git
 cd sicaps
 npm install
 
@@ -175,14 +175,14 @@ docs(readme): add getting started section
 
 ## License
 
-TBD — License decision is under YARSI University authority.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
 ## Authors
 
-- **dr. Widjayanti** — Research Lead, YARSI University
-- **[Developer]** — Software Engineer
+- **dr. Erlina Wijayanti** — Research Lead, YARSI University
+- **Mufid Farhan Muhana** — Software Engineer
 
 ---
 
