@@ -793,7 +793,7 @@ MVP only includes:
 - **Result output** (4 parts: conclusion, perception response, recommendation, personalized suggestion)
 - **Result detail page** (score circle + breakdown per category + 4 outputs + disclaimer)
 - **Shareable result link** (token-based public access)
-- **PDF download** (scores + keyword summary + 4 outputs + YARSI header)
+- **PDF download** (scores + keyword summary + 4 outputs + Yarsi header)
 - **Data persistence** to Supabase (session + turn extractions + chat messages + demographics)
 - **Bilingual** (Indonesian + English) — see [BILINGUAL_SPEC.md](./phase-1/BILINGUAL_SPEC.md)
 - **LLM via HuggingFace Inference API** (Qwen2.5-7B-Instruct)

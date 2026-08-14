@@ -5,13 +5,13 @@ type: software
 authors:
   - family-names: Wijayanti
     given-names: Erlina
-    affiliation: "YARSI University, Jakarta, Indonesia"
+    affiliation: "Yarsi University, Jakarta, Indonesia"
     orcid: "https://orcid.org/0000-0001-8081-9902"
   - family-names: Muhana
     given-names: Mufid Farhan
-    affiliation: "YARSI University, Jakarta, Indonesia"
+    affiliation: "Yarsi University, Jakarta, Indonesia"
     orcid: "https://orcid.org/0009-0006-8110-1162"
-repository-code: "https://github.com/yarsi-ai/sicaps"
+repository-code: "https://github.com/Yarsi-ai/sicaps"
 url: "https://chatsicaps.vercel.app"
 abstract: >-
   Web-based chatbot for preliminary scabies screening through 
@@ -27,11 +27,11 @@ keywords:
   - chatbot
   - artificial intelligence
   - large language model
+  - natural language processing
   - healthcare
-  - dermatology
-  - Indonesia
-  - pesantren
   - digital health
+  - clinical decision support
+  - web application
 license: MIT
 version: "1.0.0"
 date-released: "2026-08-11"

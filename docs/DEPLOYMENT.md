@@ -622,7 +622,7 @@ npm run dev
 | Error tracking   | None                                | Add Sentry (free tier)                                       |
 | Auth             | None (anonymous)                    | **Supabase Auth** (roles: santri, kader, dokter, admin)      |
 | CORS             | Disabled (same-origin)              | Enable if external integrations needed                       |
-| Domain           | `sicaps.vercel.app`                 | Custom domain (e.g., `sicaps.yarsi.ac.id`)                   |
+| Domain           | `sicaps.vercel.app`                 | Custom domain (e.g., `sicaps.Yarsi.ac.id`)                   |
 | LLM              | HuggingFace Inference API           | Self-deployed (VPS) for lower latency + cost control         |
 | Database         | Supabase free tier                  | Supabase Pro if approaching limits                           |
 | CI notifications | Console output only                 | Slack/email on smoke test failures                           |

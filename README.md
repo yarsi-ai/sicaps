@@ -17,7 +17,7 @@ SICAPS provides an accessible preliminary screening solution. Through natural co
 3. **Calculates risk scores** deterministically on the backend (not by AI)
 4. **Generates output** including risk level (High/Moderate/Low), perception response, action recommendations, and personalized care advice
 
-This project is part of dr. Erlina Wijayanti's research at YARSI University, targeting screening accuracy of ≥80% compared to clinical diagnosis by physicians.
+This project is part of dr. Erlina Wijayanti's research at Yarsi University, targeting screening accuracy of ≥80% compared to clinical diagnosis by physicians.
 
 ---
 
@@ -29,7 +29,7 @@ This project is part of dr. Erlina Wijayanti's research at YARSI University, tar
 - Questionnaire mode as fallback when AI is offline
 - Bilingual — Bahasa Indonesia + English
 - Risk level output + 4-part personalized results
-- PDF download of screening results (with YARSI header)
+- PDF download of screening results (with Yarsi header)
 - Shareable result link
 - Anonymous screening (no login required)
 
@@ -88,7 +88,7 @@ Key design decision: **LLM only extracts keywords; backend calculates scores.** 
 
 ```bash
 # 1. Clone & install
-git clone https://github.com/yarsi-ai/sicaps.git
+git clone https://github.com/Yarsi-ai/sicaps.git
 cd sicaps
 npm install
 
@@ -181,9 +181,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Authors
 
-- **dr. Erlina Wijayanti** — Research Lead, YARSI University
+- **dr. Erlina Wijayanti** — Research Lead, Yarsi University
 - **Mufid Farhan Muhana** — Software Engineer
 
 ---
 
-_SICAPS — YARSI University, 2026_
+_SICAPS — Yarsi University, 2026_
