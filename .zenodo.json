@@ -4,18 +4,13 @@
   "creators": [
     {
       "name": "Wijayanti, Erlina",
-      "affiliation": "YARSI University, Jakarta, Indonesia",
+      "affiliation": "Yarsi University, Jakarta, Indonesia",
       "orcid": "0000-0001-8081-9902"
-    },
-    {
-      "name": "Muhana, Mufid Farhan",
-      "affiliation": "YARSI University, Jakarta, Indonesia",
-      "orcid": "0009-0006-8110-1162"
     }
   ],
   "contributors": [
     {
-      "name": "YARSI University",
+      "name": "Yarsi University",
       "type": "HostingInstitution"
     }
   ],
@@ -25,15 +20,11 @@
     "chatbot",
     "artificial intelligence",
     "large language model",
-    "LLM",
+    "natural language processing",
     "healthcare",
-    "dermatology",
-    "Indonesia",
-    "pesantren",
-    "Islamic boarding school",
-    "public health",
     "digital health",
-    "mHealth"
+    "clinical decision support",
+    "web application"
   ],
   "license": "MIT",
   "upload_type": "software",

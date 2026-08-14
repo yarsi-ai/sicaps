@@ -4,7 +4,7 @@
 
 **Product Name:** SICAPS (Smart AI System for Scabies Screening)  
 **Version:** MVP (Phase 1)  
-**By:** dr. Widjayanti — YARSI University  
+**By:** dr. Widjayanti — Yarsi University  
 **Date:** June 22, 2026
 
 ### 1.1 Product Description
@@ -428,7 +428,7 @@ When user logs in, localStorage history migrates to server:
 - Indonesian language (semi-informal)
 - Minimum WCAG 2.1 AA
 - Adaptive chat theme based on education level — see [DESIGN_SPEC.md](./phase-1/DESIGN_SPEC.md)
-- PDF download of screening results (with YARSI header)
+- PDF download of screening results (with Yarsi header)
 - Shareable result link
 
 ### 4.4 Reliability
