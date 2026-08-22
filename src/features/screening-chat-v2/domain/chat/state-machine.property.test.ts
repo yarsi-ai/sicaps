@@ -20,6 +20,7 @@ const snapshotArb: fc.Arbitrary<SessionSnapshot> = fc.record({
   phase: fc.constantFrom(
     'GREETING',
     'COLLECTING',
+    'AWAITING_IMAGE',
     'ASKING_PERCEPTION',
     'OFFERING_RESULT',
     'SCREENING_COMPLETE',
@@ -35,6 +36,9 @@ const snapshotArb: fc.Arbitrary<SessionSnapshot> = fc.record({
   turnCount: fc.nat({ max: 50 }),
   partial: fc.boolean(),
   chipsAnswered: fc.subarray(['kontak', 'lokasi', 'asrama', 'tukar_alat'] as ChipsType[]),
+  // undefined models snapshots built before the photo gate existed (and v1),
+  // which the machine must treat as already resolved.
+  imageResolved: fc.option(fc.boolean(), { nil: undefined }),
 });
 
 // --- Property 7: Phase Transition Determinism ---
@@ -62,6 +66,7 @@ describe('Property 7: Phase Transition Determinism', () => {
     const validPhases = [
       'GREETING',
       'COLLECTING',
+      'AWAITING_IMAGE',
       'ASKING_PERCEPTION',
       'OFFERING_RESULT',
       'SCREENING_COMPLETE',
@@ -72,6 +77,23 @@ describe('Property 7: Phase Transition Determinism', () => {
       fc.property(snapshotArb, (snapshot) => {
         const result = nextPhase(snapshot);
         expect(validPhases).toContain(result);
+      }),
+      { numRuns: 200 },
+    );
+  });
+
+  it('never advances past the photo gate while the image is unresolved', () => {
+    fc.assert(
+      fc.property(snapshotArb, (snapshot) => {
+        const parked: SessionSnapshot = {
+          ...snapshot,
+          phase: snapshot.phase === 'GREETING' ? 'COLLECTING' : snapshot.phase,
+          crisisDetected: false,
+          turnCount: 5,
+          dimensiBelum: [],
+          imageResolved: false,
+        };
+        expect(nextPhase(parked)).toBe('AWAITING_IMAGE');
       }),
       { numRuns: 200 },
     );

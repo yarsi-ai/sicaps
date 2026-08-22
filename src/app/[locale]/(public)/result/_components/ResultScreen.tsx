@@ -15,7 +15,8 @@ import { CheckSquareIcon, CloudSaveIcon, XIcon } from '@/components/icons';
 import { useToast } from '@/components/ui/Toast';
 import { useScreening } from '../../_components/ScreeningProvider';
 import type { ResultResponse, ResultResponseV2 } from '@/types/screening-ui-api';
-import { CONFIG } from '@/lib/config';
+import { CONFIG, SCREENING_CHAT_VERSION } from '@/lib/config';
+import { imageGateStatusEnvelopeSchema } from '@/lib/vision';
 
 /** Production API result envelope shape */
 interface ApiResultData {
@@ -83,6 +84,12 @@ interface ResultWithRevision extends ResultResponse {
   gejalaCount?: number;
   faktorCount?: number;
   scoringState?: Record<string, boolean>;
+  /** Visual detection result (POSITIVE/NEGATIVE) from image analysis */
+  visualResult?: 'POSITIVE' | 'NEGATIVE' | null;
+  /** Combined final output from chat risk + visual detection */
+  finalOutput?: 'SUSPECTED_SCABIES' | 'NOT_SCABIES' | null;
+  /** Whether visual prediction failed after exhausting retries */
+  visualPredictionFailed?: boolean;
 }
 
 /** Map production API result to frontend ResultResponse */
@@ -148,6 +155,10 @@ function mapApiResultToResult(
       gejalaCount: v2.gejalaCount,
       faktorCount: v2.faktorCount,
       scoringState: v2.scoringState,
+      // Visual detection fields
+      visualResult: v2.visualResult ?? null,
+      finalOutput: v2.finalOutput ?? null,
+      visualPredictionFailed: v2.visualPredictionFailed ?? false,
     };
   }
 
@@ -162,7 +173,7 @@ export default function ResultScreen() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { showToast } = useToast();
-  const { reset } = useScreening();
+  const { reset, imageGateResolved } = useScreening();
 
   const sessionId = searchParams.get('session');
   const token = searchParams.get('token');
@@ -178,6 +189,15 @@ export default function ResultScreen() {
   const [isPollingAi, setIsPollingAi] = useState(false);
   const [nudgeDismissed, setNudgeDismissed] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
+  /**
+   * Cases where the gate needs no server round trip: v1 has no gate at all, a
+   * missing session is handled by the notFound branch, and arriving straight
+   * from the chat means the context already saw the result get recorded.
+   */
+  const gateSatisfiedLocally = SCREENING_CHAT_VERSION !== 'v2' || !sessionId || imageGateResolved;
+  /** null = still asking the API. Unresolved redirects rather than rendering. */
+  const [apiGateResolved, setApiGateResolved] = useState<boolean | null>(null);
+  const gateCheckComplete = gateSatisfiedLocally ? true : apiGateResolved;
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollingAttemptsRef = useRef(0);
   const notFound = !sessionId || !token || fetchFailed;
@@ -255,6 +275,47 @@ export default function ResultScreen() {
       CONFIG.resultPolling.INTERVAL_MS,
     );
   }
+
+  // Image gate check for v2 sessions reached without in-memory context (direct
+  // URL, refresh, shared link). Error Scenario 5 depends on this path being
+  // correct: a wrong read here bounces every v2 session straight back to /chat.
+  useEffect(() => {
+    if (gateSatisfiedLocally || !sessionId) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/screening/image/${sessionId}`);
+
+        // 404 means no image record at all — the gate cannot have resolved.
+        if (res.status === 404) {
+          if (!cancelled) router.push('/chat');
+          return;
+        }
+
+        if (!res.ok) throw new Error('gate_check_failed');
+
+        const envelope = imageGateStatusEnvelopeSchema.parse(await res.json());
+        if (cancelled) return;
+
+        if (envelope.data?.resolved === true) {
+          setApiGateResolved(true);
+        } else {
+          router.push('/chat');
+        }
+      } catch {
+        if (cancelled) return;
+        // Fail open on transport or contract errors: a broken gate check should
+        // not lock a santri out of a result that already exists.
+        setApiGateResolved(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, gateSatisfiedLocally, router]);
 
   useEffect(() => {
     if (!sessionId || !token) return;
@@ -344,6 +405,7 @@ export default function ResultScreen() {
       cancelled = true;
       stopPolling();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- startPolling is stable within render, adding it causes infinite loop
   }, [sessionId, token, isFreshCompletion, retryCount]);
 
   if (rateLimited) {
@@ -361,6 +423,11 @@ export default function ResultScreen() {
         </Button>
       </div>
     );
+  }
+
+  // Gate check pending or redirect in progress — show loading
+  if (gateCheckComplete === null) {
+    return <div className="flex h-full items-center justify-center text-sm text-text-muted">…</div>;
   }
 
   if (notFound) {
@@ -436,6 +503,42 @@ export default function ResultScreen() {
   const riskLabelKey = riskLabelMap[result.level] ?? 'riskRendah';
   const riskLabel = common(riskLabelKey);
 
+  // Hero label: show finalOutput when available (V2 + photo gate resolved),
+  // otherwise fall back to chat-only risk level (V1 or no photo yet).
+  const hasFinalOutput = result.isV2 && !!result.finalOutput;
+  const heroLabel = hasFinalOutput
+    ? result.finalOutput === 'SUSPECTED_SCABIES'
+      ? t('finalOutputSuspected')
+      : t('finalOutputNotScabies')
+    : riskLabel;
+  // Colour class for the hero chip when showing finalOutput
+  const heroFinalClass =
+    hasFinalOutput && result.finalOutput === 'SUSPECTED_SCABIES'
+      ? 'bg-accent-danger text-text-cream border-accent-danger'
+      : hasFinalOutput
+        ? 'bg-brand-secondary text-text-cream border-brand-secondary'
+        : null;
+
+  // Sub-text shown under the hero chip for V2 sessions
+  const heroSublines: string[] = [];
+  if (hasFinalOutput) {
+    heroSublines.push(t('finalOutputSubChat', { risk: common(riskLabelKey) }));
+    if (result.visualPredictionFailed) {
+      heroSublines.push(t('finalOutputSubVisual', { result: t('finalOutputVisualFallback') }));
+    } else if (result.visualResult) {
+      heroSublines.push(
+        t('finalOutputSubVisual', {
+          result:
+            result.visualResult === 'POSITIVE'
+              ? t('finalOutputVisualPositive')
+              : t('finalOutputVisualNegative'),
+        }),
+      );
+    }
+  } else if (result.isV2 && result.gejalaCount !== undefined) {
+    heroSublines.push(t('gejalaDetected', { count: result.gejalaCount }));
+  }
+
   return (
     <div className="flex h-full flex-col overflow-hidden bg-surface-alt">
       <div
@@ -451,23 +554,31 @@ export default function ResultScreen() {
           <BackButton label={common('back')} onClick={() => router.push('/history')} />
           <LanguageSwitcher variant="light" />
         </div>
-        {/* Unified header: RiskChip as focal point */}
-        <div className="mt-2 flex flex-col items-center">
-          <RiskChip
-            level={result.level}
-            label={riskLabel}
-            rotated
-            className="px-5 py-2.5 text-[15px]"
-          />
+        {/* Hero: finalOutput (V2+photo) or chat-risk fallback */}
+        <div className="mt-2 flex flex-col items-center gap-1.5">
+          {hasFinalOutput ? (
+            <span
+              className={`inline-flex items-center rounded-pill border-2 px-5 py-2.5 text-[15px] font-extrabold shadow-sticker-sm ${heroFinalClass}`}
+            >
+              {heroLabel}
+            </span>
+          ) : (
+            <RiskChip
+              level={result.level}
+              label={heroLabel}
+              rotated
+              className="px-5 py-2.5 text-[15px]"
+            />
+          )}
+          {heroSublines.map((line) => (
+            <div key={line} className="text-[11px] font-semibold opacity-75">
+              {line}
+            </div>
+          ))}
         </div>
-        {result.isV2 && result.gejalaCount !== undefined && (
-          <div className="mt-2 text-[11px] font-semibold opacity-75">
-            {t('gejalaDetected', { count: result.gejalaCount })}
-          </div>
-        )}
       </div>
 
-      <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto px-6.5 pt-3.5 pb-2">
+      <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto px-6.5 pt-3.5 pb-5">
         {/* Card 1: Kesimpulan — AI conclusion or i18n fallback */}
         {(result.isV2 || result.kesimpulan) && (
           <Card>
@@ -537,6 +648,8 @@ export default function ResultScreen() {
           </Card>
         )}
 
+        {/* Visual detection has moved into Detail Penilaian below */}
+
         <div className="flex items-start gap-2 px-1.5 pt-1 pb-0.5">
           <span className="text-xs text-text-muted">✦</span>
           <p className="m-0 text-[11px] leading-relaxed font-semibold text-text-muted">
@@ -602,6 +715,38 @@ export default function ResultScreen() {
                 </div>
               </div>
               <p className="m-0 mt-1 text-[10px] text-text-muted">{t('detailNote')}</p>
+              {/* Visual detection — integrated here so it reads as part of the
+                  evidence breakdown rather than as a separate card above detail */}
+              {result.isV2 &&
+                (result.visualResult !== undefined || result.visualPredictionFailed) && (
+                  <div className="mt-3 border-t border-border-subtle pt-3">
+                    <p className="m-0 mb-1 text-[11px] font-bold text-[#6b5e4f]">
+                      {t('detailVisualTitle')}
+                    </p>
+                    {result.visualPredictionFailed ? (
+                      <p className="m-0 text-[11.5px] italic leading-snug text-text-muted">
+                        {t('detailVisualFallback')}
+                      </p>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`text-sm ${
+                            result.visualResult === 'POSITIVE'
+                              ? 'text-risk-medium-text'
+                              : 'text-emerald-500'
+                          }`}
+                        >
+                          ●
+                        </span>
+                        <span className="text-[12px] font-semibold text-text-strong">
+                          {result.visualResult === 'POSITIVE'
+                            ? t('detailVisualPositive')
+                            : t('detailVisualNegative')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
             </div>
           </Card>
         )}

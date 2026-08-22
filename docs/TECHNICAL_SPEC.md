@@ -1,8 +1,8 @@
 # SICAPS — Technical Specification
 
 > **Reference:** [PRD.md](./PRD.md) | [AI_BOT_SPEC.md](./phase-1/AI_BOT_SPEC.md) | [DESIGN_SPEC.md](./phase-1/DESIGN_SPEC.md)  
-> **Phase:** Phase 1 (MVP)  
-> **Last updated:** June 22, 2026
+> **Phase:** Fase 1 (MVP)  
+> **Last updated:** 22 Juni 2026
 
 ---
 
@@ -179,26 +179,26 @@ sicaps/
 
 ## 4. Database Schema
 
-> **Single source of truth:** See [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) for complete definitions of all models, indexes, RLS policies, and JSON field schemas.
+> **Single source of truth:** Lihat [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) untuk definisi lengkap semua model, indexes, RLS policies, dan JSON field schemas.
 
-### 4.1 MVP Models (Summary)
+### 4.1 MVP Models (Ringkasan)
 
-| Model              | Description                     | Key Fields                                                                          |
+| Model              | Deskripsi                       | Key Fields                                                                          |
 | ------------------ | ------------------------------- | ----------------------------------------------------------------------------------- |
-| `ScreeningSession` | Root entity per session         | `id`, `locale`, `mode`, `status`, `scores`, `totalScore`, `riskLevel`, `shareToken` |
-| `Demographics`     | Demographic data 1:1 session    | `name?`, `age`, `gender`, `educationLevel`                                          |
+| `ScreeningSession` | Root entity per sesi            | `id`, `locale`, `mode`, `status`, `scores`, `totalScore`, `riskLevel`, `shareToken` |
+| `Demographics`     | Data demografi 1:1 session      | `name?`, `age`, `gender`, `educationLevel`                                          |
 | `ChatMessage`      | Transcript per bubble           | `role`, `content`, `isVoice`                                                        |
 | `TurnExtraction`   | Extraction audit trail per turn | `turnNumber`, `extraction` (JSONB), `scores` (JSONB)                                |
 
-### 4.2 Phase 2 Models (Planned)
+### 4.2 Fase 2 Models (Planned)
 
-| Model            | Description                               |
+| Model            | Deskripsi                                 |
 | ---------------- | ----------------------------------------- |
 | `User`           | Auth + roles (Admin, Doctor, Cadre, User) |
-| `DoctorReview`   | Doctor review per session                 |
-| `Respondent`     | Santri managed by cadre                   |
-| `ScreeningImage` | Photo upload for CV analysis              |
-| `CadreLocation`  | Pondok location profile                   |
+| `DoctorReview`   | Review dokter per session                 |
+| `Respondent`     | Santri yang dikelola kader                |
+| `ScreeningImage` | Upload foto untuk CV analysis             |
+| `CadreLocation`  | Profil lokasi pondok                      |
 
 > **Schema Prisma lengkap (copy-paste ready):** DATABASE_SCHEMA.md §13
 
@@ -217,7 +217,7 @@ sicaps/
 | GET    | `/api/screening/result/:id`     | Get result by sessionId (public, requires shareToken)                         |
 | GET    | `/api/screening/result/:id/pdf` | Download PDF (requires shareToken)                                            |
 
-> **Full endpoint specification:** See [API_SPEC.md](./phase-1/API_SPEC.md) for request/response schemas, error codes, rate limits, and questionnaire mode.
+> **Full endpoint specification:** Lihat [API_SPEC.md](./phase-1/API_SPEC.md) untuk request/response schemas, error codes, rate limits, dan questionnaire mode.
 
 #### `POST /api/screening/start`
 
@@ -318,7 +318,7 @@ Response:
 
 ### 5.2 — 5.6 Authentication, Admin, Doctor, Cadre, Region (Fase 2)
 
-> See [phase-2/API_ENDPOINTS.md](./phase-2/API_ENDPOINTS.md)
+> Lihat [phase-2/API_ENDPOINTS.md](./phase-2/API_ENDPOINTS.md)
 
 ---
 
@@ -369,7 +369,7 @@ LLM_MODEL=qwen2.5:7b
 
 ### 6.3 System Prompts
 
-> **Full prompt templates:** See [AI_BOT_SPEC.md — Appendix A](./phase-1/AI_BOT_SPEC.md) for complete templates.
+> **Full prompt templates:** Lihat [AI_BOT_SPEC.md — Appendix A](./phase-1/AI_BOT_SPEC.md) untuk template lengkap.
 
 Prompts di-manage di `lib/prompts.ts`:
 
@@ -428,11 +428,11 @@ export function getOutputPrompt(session: ScreeningSession, scores: Record<string
 
 ## 7. Scoring Engine
 
-> **Single source of truth:** See [SCORING_ENGINE_SPEC.md](./phase-1/SCORING_ENGINE_SPEC.md) for complete algorithm, pattern tables, keyword pool management, questionnaire mode scoring, and worked examples.
+> **Single source of truth:** Lihat [SCORING_ENGINE_SPEC.md](./phase-1/SCORING_ENGINE_SPEC.md) untuk algoritma lengkap, pattern tables, keyword pool management, questionnaire mode scoring, dan worked examples.
 
 ### 7.1 Summary
 
-| Aspect               | Description                                                                      |
+| Aspek                | Deskripsi                                                                        |
 | -------------------- | -------------------------------------------------------------------------------- |
 | Pipeline             | LLM extract keywords → backend normalize → match pattern table → calculate score |
 | Confidence filtering | Only `high` + `medium` keywords enter scoring. `low` excluded until confirmed.   |
@@ -469,9 +469,9 @@ export function getRiskLevel(totalScore: number): RiskLevel;
 
 | Total Score | Level    | Interpretation                        |
 | ----------- | -------- | ------------------------------------- |
-| ≥ 7         | HIGH     | Highly likely scabies                 |
-| 4 – 6       | MODERATE | Suspected scabies, needs evaluation   |
-| ≤ 3         | LOW      | Unlikely scabies                      |
+| ≥ 7         | HIGH     | Kemungkinan besar skabies             |
+| 4 – 6       | MODERATE | Curiga skabies, perlu evaluasi lanjut |
+| ≤ 3         | LOW      | Kemungkinan kecil skabies             |
 
 > **Keyword tables (ID):** [PRD.md §3.5](./PRD.md)  
 > **Keyword tables (EN):** [BILINGUAL_SPEC.md §3](./phase-1/BILINGUAL_SPEC.md)  
@@ -493,7 +493,7 @@ sequenceDiagram
     B-->>C: {sessionId, openingMessage (template)}
 
     rect rgba(0, 100, 200, 0.1)
-    note over C,DB: LOOP (adaptive — until all categories covered)
+    note over C,DB: LOOP (adaptive — sampai semua kategori covered)
     C->>B: POST /screening/chat {sessionId, message}
     B->>DB: 1. Save ChatMessage
     B->>B: 2. Build instruction (check categoriesCovered)
@@ -505,7 +505,7 @@ sequenceDiagram
     B-->>C: {reply, categoriesCovered, isComplete: false}
     end
 
-    note over C,DB: When isComplete = true
+    note over C,DB: Ketika isComplete = true
     B->>L: 7. LLM call: generate final output (4 parts)
     L-->>B: {conclusion, perception, ...}
     B->>DB: 8. Update session (COMPLETED, scores, output)
@@ -524,7 +524,7 @@ sequenceDiagram
 
 ## 8.5 Screening History (Client-Side)
 
-Phase 1 (MVP) stores screening history in **browser localStorage**. Without user accounts, this is the only way users can return to view results.
+Phase 1 (MVP) menyimpan riwayat screening di **localStorage** browser. Tanpa user account, ini satu-satunya cara user bisa kembali melihat hasil.
 
 ### localStorage Schema
 
@@ -553,10 +553,10 @@ type ScreeningHistory = ScreeningRecord[];
 
 | Event                               | Action                                                        |
 | ----------------------------------- | ------------------------------------------------------------- |
-| Session completed (result received) | Append record to localStorage                                 |
-| User opens `/history`               | Read + filter expired (>30 days) + render list                |
-| User taps "Delete All"              | Clear `STORAGE_KEY` from localStorage                         |
-| Auto-expire check                   | On page load, remove records where `createdAt` > 30 days ago  |
+| Session completed (result received) | Append record ke localStorage                                 |
+| User opens `/history`               | Read + filter expired (>30 hari) + render list                |
+| User taps "Hapus Semua"             | Clear `STORAGE_KEY` dari localStorage                         |
+| Auto-expire check                   | On page load, remove records where `createdAt` > 30 hari lalu |
 
 ### Auto-Expire Logic
 
@@ -583,15 +583,15 @@ export function getHistory(): ScreeningRecord[] {
 
 ### Halaman `/history`
 
-| Aspect | Detail |
-|--------|--------|
+| Aspek            | Detail                                                                                         |
+| ---------------- | ---------------------------------------------------------------------------------------------- |
 | Route            | `app/(public)/history/page.tsx`                                                                |
 | Data source      | `lib/history.ts` → localStorage                                                                |
-| Empty state      | "No screening history yet" + CTA to start new                                                  |
-| Item display     | Date, risk badge (color), score, mode                                                          |
-| Actions per item | "View Result" (→ result page), "View Chat" (→ read-only chat)                                  |
-| Footer           | "Delete All History" button (confirm dialog)                                                   |
-| Note             | "History is only stored on this device. Use Incognito mode if you don't want it saved."        |
+| Empty state      | "Belum ada riwayat screening" + CTA mulai baru                                                 |
+| Item display     | Tanggal, risk badge (warna), skor, mode                                                        |
+| Actions per item | "Lihat Hasil" (→ result page), "Lihat Chat" (→ read-only chat)                                 |
+| Footer           | Tombol "Hapus Semua Riwayat" (confirm dialog)                                                  |
+| Note             | "Riwayat hanya tersimpan di perangkat ini. Gunakan mode Incognito jika tidak ingin tersimpan." |
 
 ### Privacy Design
 
@@ -604,13 +604,13 @@ export function getHistory(): ScreeningRecord[] {
 
 ### Phase 2 Migration
 
-When Phase 2 (user accounts):
+Saat Phase 2 (user accounts):
 
-1. User logs in → frontend sends localStorage records to backend
-2. Backend verifies each `sessionId + shareToken` pair
-3. Backend links verified sessions to `userId`
-4. Frontend clears localStorage after successful migration
-5. `/history` page switches data source: localStorage → API endpoint
+1. User login → frontend kirim localStorage records ke backend
+2. Backend verify setiap `sessionId + shareToken` pair
+3. Backend link verified sessions ke `userId`
+4. Frontend clear localStorage setelah migration sukses
+5. Halaman `/history` switch data source: localStorage → API endpoint
 
 ---
 
@@ -659,7 +659,7 @@ export function withRole(allowedRoles: Role[]) {
 
 ## 10. Voice Integration
 
-> **Full voice spec:** See [AI_BOT_SPEC.md §13](./phase-1/AI_BOT_SPEC.md) for TTS settings details, operation modes, and visual feedback.
+> **Full voice spec:** Lihat [AI_BOT_SPEC.md §13](./phase-1/AI_BOT_SPEC.md) untuk detail TTS settings, mode operasi, dan visual feedback.
 
 ### 10.1 Voice Input (STT)
 
@@ -729,7 +729,7 @@ export function speak(text: string, theme: 'playful' | 'hybrid', locale: string)
 }
 ```
 
-> **Note:** Using Vercel Hobby (free tier). Chat endpoint uses streaming (`ReadableStream`) to bypass 10s function timeout. See [LLM_INTEGRATION.md §4](./phase-1/LLM_INTEGRATION.md) for streaming implementation details and [DEPLOYMENT.md §4](./DEPLOYMENT.md) for complete configuration.
+> **Note:** Menggunakan Vercel Hobby (free tier). Chat endpoint menggunakan streaming (`ReadableStream`) untuk bypass 10s function timeout. Lihat [LLM_INTEGRATION.md §4](./phase-1/LLM_INTEGRATION.md) untuk detail streaming implementation dan [DEPLOYMENT.md §4](./DEPLOYMENT.md) untuk konfigurasi lengkap.
 
 ### 11.2 Environment Variables (Vercel)
 
@@ -793,7 +793,7 @@ MVP only includes:
 - **Result output** (4 parts: conclusion, perception response, recommendation, personalized suggestion)
 - **Result detail page** (score circle + breakdown per category + 4 outputs + disclaimer)
 - **Shareable result link** (token-based public access)
-- **PDF download** (scores + keyword summary + 4 outputs + Yarsi header)
+- **PDF download** (scores + keyword summary + 4 outputs + YARSI header)
 - **Data persistence** to Supabase (session + turn extractions + chat messages + demographics)
 - **Bilingual** (Indonesian + English) — see [BILINGUAL_SPEC.md](./phase-1/BILINGUAL_SPEC.md)
 - **LLM via HuggingFace Inference API** (Qwen2.5-7B-Instruct)

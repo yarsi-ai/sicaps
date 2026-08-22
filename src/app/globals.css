@@ -1,6 +1,14 @@
 @import "tailwindcss";
 @import "../themes/purple.css";
 
+@theme {
+  /* Width of the app shell — the centered column every public screen lives in.
+     Layout, not palette, so it sits here rather than in the theme files.
+     Anything that has to line up with the shell (bottom sheets, for instance)
+     reads this token instead of repeating the number. Generates `max-w-shell`. */
+  --container-shell: 520px;
+}
+
 @utility rounded-bubble-bot {
   border-radius: 4px 18px 18px 18px;
 }
@@ -95,4 +103,46 @@ textarea {
 .scrollbar-textarea {
   scrollbar-width: thin;
   scrollbar-color: var(--color-border-subtle, #d1ccc4) transparent;
+}
+
+/* Bottom sheet animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+/* Safe area padding for bottom sheets on notched devices */
+.pb-safe {
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
 }

@@ -9,9 +9,11 @@ vi.mock('@/db/prisma', () => ({
       update: vi.fn(),
     },
     screeningResult: { findUnique: vi.fn(), upsert: vi.fn(), update: vi.fn() },
+    screeningImage: { findUnique: vi.fn() },
     chatMessage: { create: vi.fn(), findMany: vi.fn() },
     checkpoint: { upsert: vi.fn(), update: vi.fn() },
     auditLog: { create: vi.fn() },
+    $transaction: vi.fn(),
   },
 }));
 
@@ -65,6 +67,7 @@ import { getPrimaryClient, getLLMConfig } from '@/lib/llm';
 import { buildResultPrompt } from '../adapters/llm/prompts';
 import { resultTextSchema } from '../adapters/llm/schemas';
 import {
+  advancePhaseAfterImage,
   createSession,
   getSessionState,
   getResult,
@@ -80,6 +83,8 @@ const mockSessionUpdate = vi.mocked(prisma.screeningSession.update);
 const mockResultFindUnique = vi.mocked(prisma.screeningResult.findUnique);
 const mockResultUpsert = vi.mocked(prisma.screeningResult.upsert);
 const mockResultUpdate = vi.mocked(prisma.screeningResult.update);
+const mockImageFindUnique = vi.mocked(prisma.screeningImage.findUnique);
+const mockTransaction = vi.mocked(prisma.$transaction);
 const mockCheckpointUpsert = vi.mocked(prisma.checkpoint.upsert);
 const mockAuditLogCreate = vi.mocked(prisma.auditLog.create);
 const mockMessageCreate = vi.mocked(prisma.chatMessage.create);
@@ -107,9 +112,9 @@ describe('createSession', () => {
     const result = await createSession({ locale: 'id' });
 
     expect(result.sessionId).toBe(SESSION_ID);
+    expect(result.openingMessages.length).toBeGreaterThan(0);
+    expect(result.openingMessages[0]?.length).toBeGreaterThan(0);
     expect(result.phase).toBe('GREETING');
-    expect(result.greeting).toBeDefined();
-    expect(result.greeting.length).toBeGreaterThan(0);
 
     expect(mockSessionCreate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -249,6 +254,10 @@ describe('getResult', () => {
       aiPerceptionResponse: null,
       aiRecommendation: null,
       aiSuggestion: null,
+      // Visual detection fields (added in visual-detection feature)
+      visualResult: null,
+      finalOutput: null,
+      visualPredictionFailed: false,
     });
 
     expect(mockResultFindUnique).toHaveBeenCalledWith({
@@ -877,5 +886,302 @@ describe('generateResultText', () => {
     // The LLM call might not have completed yet — that's the point of fire-and-forget
     // Wait for the async operation to complete for cleanup
     await new Promise((resolve) => setTimeout(resolve, 150));
+  });
+});
+
+/**
+ * The image gate normally sits at SCREENING_COMPLETE, so `submitImage` writes the
+ * combination onto an existing ScreeningResult. But the photo can also arrive
+ * first — the gate position is configurable for testing, and a session can be
+ * finalised afterwards. Both orders must end up with the same stored result.
+ */
+describe('finalize — visual detection ordering', () => {
+  const SESSION_ID = 'session-ordering';
+
+  function arrangeSession(): void {
+    mockSessionFindUniqueOrThrow.mockResolvedValue({
+      id: SESSION_ID,
+      dimensiTerisi: {},
+      dimensiBelum: [],
+      perception: 'adequate',
+      partial: false,
+      metadata: null,
+      gatalMalam: true,
+      kontakSerupa: false,
+      lokasiKhas: false,
+      asrama: true,
+      tukarAlat: false,
+    } as never);
+    mockResultUpsert.mockResolvedValue({} as never);
+    mockCheckpointUpsert.mockResolvedValue({} as never);
+    mockSessionUpdate.mockResolvedValue({} as never);
+    mockAuditLogCreate.mockResolvedValue({} as never);
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    arrangeSession();
+  });
+
+  it('leaves the visual fields unset when no image has been submitted', async () => {
+    mockImageFindUnique.mockResolvedValue(null as never);
+
+    const result = await finalize(SESSION_ID);
+
+    expect(result.visualResult).toBeNull();
+    expect(result.finalOutput).toBeNull();
+    expect(result.visualPredictionFailed).toBe(false);
+
+    const call = mockResultUpsert.mock.calls[0]?.[0] as { create: Record<string, unknown> };
+    expect(call.create).not.toHaveProperty('visualResult');
+    expect(call.create).not.toHaveProperty('finalOutput');
+  });
+
+  it('leaves the visual fields unset while a submitted image has no result yet', async () => {
+    mockImageFindUnique.mockResolvedValue({
+      visualResult: null,
+      predictionFailed: false,
+    } as never);
+
+    const result = await finalize(SESSION_ID);
+
+    expect(result.visualResult).toBeNull();
+    expect(result.finalOutput).toBeNull();
+  });
+
+  it('folds an earlier visual result into the stored result', async () => {
+    // calculateRisk is mocked to MODERATE; MODERATE + POSITIVE => SUSPECTED_SCABIES
+    mockImageFindUnique.mockResolvedValue({
+      visualResult: 'POSITIVE',
+      predictionFailed: false,
+    } as never);
+
+    const result = await finalize(SESSION_ID);
+
+    expect(result.visualResult).toBe('POSITIVE');
+    expect(result.finalOutput).toBe('SUSPECTED_SCABIES');
+    expect(result.visualPredictionFailed).toBe(false);
+
+    expect(mockResultUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          visualResult: 'POSITIVE',
+          finalOutput: 'SUSPECTED_SCABIES',
+          visualPredictionFailed: false,
+        }),
+        update: expect.objectContaining({
+          visualResult: 'POSITIVE',
+          finalOutput: 'SUSPECTED_SCABIES',
+          visualPredictionFailed: false,
+        }),
+      }),
+    );
+  });
+
+  it('combines a NEGATIVE visual result into NOT_SCABIES at MODERATE risk', async () => {
+    mockImageFindUnique.mockResolvedValue({
+      visualResult: 'NEGATIVE',
+      predictionFailed: false,
+    } as never);
+
+    const result = await finalize(SESSION_ID);
+
+    expect(result.finalOutput).toBe('NOT_SCABIES');
+  });
+
+  it('carries the permanent-failure flag through from the image row', async () => {
+    mockImageFindUnique.mockResolvedValue({
+      visualResult: 'NEGATIVE',
+      predictionFailed: true,
+    } as never);
+
+    const result = await finalize(SESSION_ID);
+
+    expect(result.visualPredictionFailed).toBe(true);
+    expect(result.visualResult).toBe('NEGATIVE');
+    expect(result.finalOutput).toBe('NOT_SCABIES');
+  });
+});
+
+/**
+ * The opening messages are the santri's first sight of the bot, and they are
+ * also the transcript's first rows. They are written server-side so the two can
+ * never disagree — the client used to hold its own copy of the greeting.
+ */
+describe('createSession — opening messages', () => {
+  const SESSION_ID = 'session-opening';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSessionCreate.mockResolvedValue({ id: SESSION_ID, phase: 'GREETING' } as never);
+    mockAuditLogCreate.mockResolvedValue({} as never);
+    mockTransaction.mockResolvedValue([] as never);
+  });
+
+  it('persists every opening message it returns', async () => {
+    const result = await createSession({ locale: 'id' });
+
+    expect(mockTransaction).toHaveBeenCalledTimes(1);
+    expect(mockMessageCreate).toHaveBeenCalledTimes(result.openingMessages.length);
+  });
+
+  it('writes them as bot turns', async () => {
+    await createSession({ locale: 'id' });
+
+    for (const call of mockMessageCreate.mock.calls) {
+      const { data } = call[0] as { data: Record<string, unknown> };
+      expect(data.role).toBe('assistant');
+      expect(data.sessionId).toBe(SESSION_ID);
+    }
+  });
+
+  it('stamps them with increasing timestamps so their order is fixed', async () => {
+    await createSession({ locale: 'id' });
+
+    const times = mockMessageCreate.mock.calls.map((call) =>
+      ((call[0] as { data: { createdAt: Date } }).data.createdAt as Date).getTime(),
+    );
+
+    // Inside a transaction Postgres' now() is identical for every row, so
+    // relying on the column default would leave the order undefined.
+    for (let i = 1; i < times.length; i++) {
+      expect(times[i]).toBeGreaterThan(times[i - 1] as number);
+    }
+  });
+
+  it('returns the same strings it persisted', async () => {
+    const result = await createSession({ locale: 'id' });
+
+    const persisted = mockMessageCreate.mock.calls.map(
+      (call) => (call[0] as { data: { content: string } }).data.content,
+    );
+
+    expect(persisted).toEqual(result.openingMessages);
+  });
+
+  it('asks for the photo up front only when the gate opens at the start', async () => {
+    const result = await createSession({ locale: 'id' });
+
+    // The switch is off by default, so the session opens with the greeting alone
+    // and the photo request rides along with screeningComplete instead.
+    expect(result.openingMessages).toHaveLength(1);
+  });
+});
+
+/**
+ * An upload is not a chat turn, so `processChatTurn` never runs its transition
+ * path for it. This is the equivalent entry point out of AWAITING_IMAGE, and it
+ * reuses the same `nextPhase` so the gate cannot drift from the machine.
+ */
+describe('advancePhaseAfterImage', () => {
+  const SESSION_ID = 'session-gate';
+
+  /** A session sitting in the gate with everything else already collected. */
+  function arrangeParkedSession(overrides: Record<string, unknown> = {}): void {
+    mockSessionFindUniqueOrThrow.mockResolvedValue({
+      locale: 'id',
+      phase: 'AWAITING_IMAGE',
+      dimensiBelum: [],
+      perception: null,
+      hasilDitampilkan: false,
+      turnCount: 8,
+      partial: false,
+      chipsAnswered: ['kontak', 'lokasi', 'asrama', 'tukar_alat'],
+      stagnationCount: 0,
+      ...overrides,
+    } as never);
+    mockSessionUpdate.mockResolvedValue({} as never);
+    mockAuditLogCreate.mockResolvedValue({} as never);
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('moves a parked session to ASKING_PERCEPTION', async () => {
+    arrangeParkedSession();
+
+    const result = await advancePhaseAfterImage(SESSION_ID);
+
+    expect(result.phase).toBe('ASKING_PERCEPTION');
+    expect(mockSessionUpdate).toHaveBeenCalledWith({
+      where: { id: SESSION_ID },
+      data: {
+        phase: 'ASKING_PERCEPTION',
+        // Asking is recorded, not just returned. The next chat turn reads this to
+        // know the santri's reply answers the severity question.
+        perceptionStep: 'ASK_SEVERITY',
+        perceptionStartTurn: 8,
+      },
+    });
+  });
+
+  it('returns the perception question, because no chat turn follows the upload', async () => {
+    arrangeParkedSession();
+
+    const result = await advancePhaseAfterImage(SESSION_ID);
+
+    expect(result.followUpMessage).toContain('menurut kamu');
+  });
+
+  it('holds the question back and records nothing asked when the caller suppresses it', async () => {
+    // The photo turn already ends in a question of its own, so the perception
+    // question would be a second question in one turn. Claiming to have asked it
+    // is worse than not asking: the next turn would score an unrelated reply as
+    // a perception answer.
+    arrangeParkedSession();
+
+    const result = await advancePhaseAfterImage(SESSION_ID, { suppressFollowUp: true });
+
+    expect(result.phase).toBe('ASKING_PERCEPTION');
+    expect(result.followUpMessage).toBeNull();
+    expect(mockSessionUpdate).toHaveBeenCalledWith({
+      where: { id: SESSION_ID },
+      data: { phase: 'ASKING_PERCEPTION' },
+    });
+  });
+
+  it('returns the English question for an English session', async () => {
+    arrangeParkedSession({ locale: 'en' });
+
+    const result = await advancePhaseAfterImage(SESSION_ID);
+
+    expect(result.followUpMessage).toContain('how would you describe this itching');
+  });
+
+  it('logs the transition with the trigger that caused it', async () => {
+    arrangeParkedSession();
+
+    await advancePhaseAfterImage(SESSION_ID);
+
+    expect(mockAuditLogCreate).toHaveBeenCalledWith({
+      data: {
+        sessionId: SESSION_ID,
+        event: 'phase_transition',
+        detail: { from: 'AWAITING_IMAGE', to: 'ASKING_PERCEPTION', trigger: 'image_submitted' },
+      },
+    });
+  });
+
+  it('skips SCREENING_COMPLETE straight to it when perception is already known', async () => {
+    arrangeParkedSession({ perception: 'adequate' });
+
+    const result = await advancePhaseAfterImage(SESSION_ID);
+
+    // Nothing owes a question here, so the transcript gains no extra row.
+    expect(result.phase).toBe('SCREENING_COMPLETE');
+    expect(result.followUpMessage).toBeNull();
+  });
+
+  it('writes nothing when the phase does not move', async () => {
+    // Dimensions still missing, so the machine sends it back to COLLECTING —
+    // which is where a gate-at-start session already is.
+    arrangeParkedSession({ phase: 'COLLECTING', dimensiBelum: ['lesi'] });
+
+    const result = await advancePhaseAfterImage(SESSION_ID);
+
+    expect(result).toEqual({ phase: 'COLLECTING', followUpMessage: null });
+    expect(mockSessionUpdate).not.toHaveBeenCalled();
+    expect(mockAuditLogCreate).not.toHaveBeenCalled();
   });
 });

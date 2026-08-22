@@ -16,6 +16,19 @@ enum RiskLevel {
   HIGH
 }
 
+// Which of the two ASKING_PERCEPTION questions is currently outstanding.
+//
+// Modelled as an enum for the same reason Perception is: the database rejects
+// anything else and the generated client hands back a narrowed union.
+//
+// A null value means the phase has been entered but the severity question has
+// not been asked yet — that distinction is what stops an answer from being
+// attributed to a question the santri never saw.
+enum PerceptionStep {
+  ASK_SEVERITY
+  ASK_BARRIER
+}
+
 enum Perception {
   UNDERESTIMATE
   OVERESTIMATE
@@ -33,6 +46,31 @@ enum EducationLevel {
   ELEMENTARY
   JUNIOR_HIGH
   SENIOR_HIGH
+}
+
+// Visual detection (MVP) — fixed value sets, so modelled as enums for the same
+// reason RiskLevel and Perception are: the database rejects anything else and
+// the generated client hands back a narrowed union with no cast at the seam.
+enum VisualResult {
+  POSITIVE
+  NEGATIVE
+}
+
+/**
+ * What a ChatMessage row represents.
+ * TEXT is the default so every existing row and every writer that predates this
+ * column keeps working untouched. IMAGE marks the turn where a santri submitted
+ * a screening photo: `content` still holds readable text (the LLM context
+ * builder reads it verbatim), while the UI swaps it for an image bubble.
+ */
+enum ChatMessageKind {
+  TEXT
+  IMAGE
+}
+
+enum FinalOutput {
+  SUSPECTED_SCABIES
+  NOT_SCABIES
 }
 
 // Phase 2
@@ -61,6 +99,10 @@ enum ReviewAction {
 enum SessionPhase {
   GREETING
   COLLECTING
+  // Mandatory photo gate. Sits between COLLECTING and ASKING_PERCEPTION: the
+  // clinical dimensions are gathered, the photo is requested, and only then does
+  // the perception question follow.
+  AWAITING_IMAGE
   ASKING_PERCEPTION
   OFFERING_RESULT
   SCREENING_COMPLETE
@@ -130,9 +172,11 @@ model ScreeningSession {
   lastChipsTurn Int      @default(0) @map("last_chips_turn")
 
   // V2 conflict resolution fields
-  conflictDimension String? @map("conflict_dimension")
-  conflictClarified Boolean @default(false) @map("conflict_clarified")
-  stagnationCount   Int     @default(0) @map("stagnation_count")
+  conflictDimension   String?         @map("conflict_dimension")
+  conflictClarified   Boolean         @default(false) @map("conflict_clarified")
+  stagnationCount     Int             @default(0) @map("stagnation_count")
+  perceptionStartTurn Int?            @map("perception_start_turn")
+  perceptionStep      PerceptionStep? @map("perception_step")
 
   messages            ChatMessage[]
   extractions         TurnExtraction[]
@@ -141,6 +185,7 @@ model ScreeningSession {
   demographics        Demographics?
   screeningResults    ScreeningResult[]
   checkpoint          Checkpoint?
+  image               ScreeningImage?
 
   @@index([status, riskLevel], map: "idx_session_status_risk")
   @@index([shareToken], map: "idx_session_share_token")
@@ -164,12 +209,13 @@ model Demographics {
 }
 
 model ChatMessage {
-  id        String   @id @default(uuid()) @map("id")
-  sessionId String   @map("session_id")
-  role      String   @map("role")
-  content   String   @map("content")
-  isVoice   Boolean  @default(false) @map("is_voice")
-  createdAt DateTime @default(now()) @map("created_at")
+  id        String          @id @default(uuid()) @map("id")
+  sessionId String          @map("session_id")
+  role      String          @map("role")
+  content   String          @map("content")
+  kind      ChatMessageKind @default(TEXT) @map("kind")
+  isVoice   Boolean         @default(false) @map("is_voice")
+  createdAt DateTime        @default(now()) @map("created_at")
 
   session ScreeningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
@@ -238,19 +284,22 @@ model EvaluationFeedback {
 // ==================== Screening Chat V2 Models ====================
 
 model ScreeningResult {
-  id                   String     @id @default(uuid()) @map("id")
-  sessionId            String     @unique @map("session_id")
-  riskLevel            RiskLevel  @map("risk_level")
-  gejalaCount          Int        @map("gejala_count")
-  faktorCount          Int        @map("faktor_count")
-  scoringState         Json       @map("scoring_state")
-  perception           Perception @map("perception")
-  partial              Boolean    @default(false) @map("partial")
-  aiConclusion         String?    @map("ai_conclusion")
-  aiPerceptionResponse String?    @map("ai_perception_response")
-  aiRecommendation     String?    @map("ai_recommendation")
-  aiSuggestion         String?    @map("ai_suggestion")
-  createdAt            DateTime   @default(now()) @map("created_at")
+  id                     String        @id @default(uuid()) @map("id")
+  sessionId              String        @unique @map("session_id")
+  riskLevel              RiskLevel     @map("risk_level")
+  gejalaCount            Int           @map("gejala_count")
+  faktorCount            Int           @map("faktor_count")
+  scoringState           Json          @map("scoring_state")
+  perception             Perception    @map("perception")
+  partial                Boolean       @default(false) @map("partial")
+  aiConclusion           String?       @map("ai_conclusion")
+  aiPerceptionResponse   String?       @map("ai_perception_response")
+  aiRecommendation       String?       @map("ai_recommendation")
+  aiSuggestion           String?       @map("ai_suggestion")
+  visualResult           VisualResult? @map("visual_result")
+  visualPredictionFailed Boolean       @default(false) @map("visual_prediction_failed")
+  finalOutput            FinalOutput?  @map("final_output")
+  createdAt              DateTime      @default(now()) @map("created_at")
 
   session ScreeningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
@@ -290,6 +339,32 @@ model AuditLog {
   @@index([sessionId], map: "idx_audit_session")
   @@index([event, createdAt], map: "idx_audit_event")
   @@map("audit_log")
+}
+
+// ==================== Visual Detection (MVP) ====================
+
+model ScreeningImage {
+  id               String        @id @default(uuid()) @map("id")
+  sessionId        String        @unique @map("session_id")
+  // Null when Supabase Storage isn't configured (SUPABASE_URL /
+  // SUPABASE_SERVICE_ROLE_KEY absent) — the image is analysed but not persisted
+  // to storage. See storage.service.ts#isStorageConfigured.
+  storagePath      String?       @map("storage_path")
+  fileName         String        @map("file_name")
+  mimeType         String        @map("mime_type")
+  fileSize         Int           @map("file_size")
+  consentGiven     Boolean       @default(false) @map("consent_given")
+  visualResult     VisualResult? @map("visual_result")
+  predictionFailed Boolean       @default(false) @map("prediction_failed")
+  confidenceScore  Float?        @map("confidence_score")
+  attemptCount     Int           @default(0) @map("attempt_count")
+  rawResult        Json?         @map("raw_result")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  session ScreeningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("screening_image")
 }
 
 // ==================== Phase 2 — do not migrate ====================
@@ -347,26 +422,6 @@ model Respondent {
 
   @@index([cadreId], map: "idx_respondent_cadre")
   @@map("respondent")
-}
-
-model ScreeningImage {
-  id              String   @id @default(uuid()) @map("id")
-  sessionId       String   @map("session_id")
-  storagePath     String   @map("storage_path")
-  fileName        String   @map("file_name")
-  mimeType        String   @map("mime_type")
-  fileSize        Int      @map("file_size")
-  analyzed        Boolean  @default(false) @map("analyzed")
-  detectedLesions Boolean? @map("detected_lesions")
-  lesionTypes     Json?    @map("lesion_types")
-  confidence      Float?   @map("confidence")
-  conclusion      String?  @map("conclusion")
-  rawResult       Json?    @map("raw_result")
-  consentGiven    Boolean  @default(false) @map("consent_given")
-  createdAt       DateTime @default(now()) @map("created_at")
-
-  @@index([sessionId], map: "idx_image_session")
-  @@map("screening_image")
 }
 
 model CadreLocation {

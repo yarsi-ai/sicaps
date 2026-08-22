@@ -57,6 +57,7 @@
     "saved": "Saved for research (anonymous)",
     "savedIncognito": "Session not saved · Incognito mode",
     "seeResult": "See Results",
+    "waitingForImage": "Send a photo to unlock your results",
     "incognitoTitle": "Incognito mode",
     "incognitoOn": "🕶️ Incognito ON — history won't be saved on this device",
     "incognitoOff": "👁️ Incognito OFF — history will be saved on this device",
@@ -71,7 +72,12 @@
     "micTitle": "Voice input",
     "sendTitle": "Send",
     "voiceTitle": "Voice mode",
-    "attachToast": "📷 Send photo — Phase 2 feature",
+    "consentTitle": "Photo Permission",
+    "consentPurpose": "The skin photo you send will be analyzed by AI to help detect signs of scabies.",
+    "consentPrivacy": "Your photo is stored securely and only used for this screening. Your data will not be shared with others.",
+    "consentRevocation": "You can decline without affecting your chat-based screening results.",
+    "consentAccept": "Accept",
+    "consentDecline": "Decline",
     "voiceOn": "Voice mode on 🔊",
     "voiceOff": "Voice mode off",
     "offlineTitle": "You're offline",
@@ -131,6 +137,13 @@
       }
     },
     "gejalaDetected": "{count}/3 key symptoms detected",
+    "finalOutputSuspected": "Suspected Scabies",
+    "finalOutputNotScabies": "Not Scabies",
+    "finalOutputSubChat": "Chat risk: {risk}",
+    "finalOutputSubVisual": "Photo: {result}",
+    "finalOutputVisualPositive": "signs detected",
+    "finalOutputVisualNegative": "no signs",
+    "finalOutputVisualFallback": "photo unreadable",
     "detailShow": "Assessment detail",
     "detailHide": "Hide detail",
     "detailTitle": "Assessment detail",
@@ -141,7 +154,20 @@
     "detailLokasi": "Itching in areas typical of scabies",
     "detailAsrama": "Living in a dormitory/pondok",
     "detailTukarAlat": "Habit of sharing personal items",
-    "detailNote": "The risk level comes from the combination of key symptoms and risk factors found during the conversation."
+    "detailNote": "The risk level comes from the combination of key symptoms and risk factors found during the conversation.",
+    "detailVisualTitle": "Visual Detection",
+    "detailVisualPositive": "Visual scabies signs detected",
+    "detailVisualNegative": "No scabies signs found in photo",
+    "detailVisualFallback": "Photo analysis was unsuccessful. Your screening result is still based on the chat.",
+    "visualDetection": {
+      "title": "Visual Detection",
+      "positive": "Visual signs detected",
+      "negative": "No visual signs detected",
+      "fallback": "Photo analysis unavailable",
+      "finalLabel": "Final Result",
+      "finalSuspected": "Suspected Scabies",
+      "finalNotScabies": "Not Scabies"
+    }
   },
   "riwayat": {
     "title": "Screening History",
@@ -181,5 +207,25 @@
   },
   "a11y": {
     "skipToContent": "Skip to main content"
+  },
+  "imageUpload": {
+    "sheetTitle": "Send Photo",
+    "takePhoto": "Take Photo",
+    "chooseFromGallery": "Choose from Gallery",
+    "cancel": "Cancel",
+    "invalidType": "File format not supported. Use JPEG, PNG, or WebP.",
+    "fileTooLarge": "File size too large. Maximum is 10 MB.",
+    "imageAlt": "Uploaded skin photo",
+    "uploading": "Uploading photo",
+    "uploadComplete": "Photo uploaded successfully",
+    "uploadFailed": "Could not send",
+    "analysisFailed": "Analysis failed",
+    "retryUpload": "Try again ({attemptsLeft} left)",
+    "expand": "View photo larger",
+    "closeExpanded": "Close photo",
+    "storedSecurely": "Photo stored securely",
+    "storedSecurelyHint": "Only used for this screening",
+    "inputHintAwaitingImage": "Tap + to send a photo",
+    "uploadSkipped": "The photo could not be sent after several attempts. No worries — I'll still put together your screening result from our chat. Ready to continue?"
   }
 }

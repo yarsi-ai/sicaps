@@ -25,8 +25,27 @@ interface BotTextBundle {
   hardLimitIncomplete: string;
   /** Farewell when the hard turn limit closes an otherwise complete session. */
   hardLimitComplete: string;
-  /** Closing message once screening finishes and the result is ready. */
+  /**
+   * Closing message once screening finishes.
+   *
+   * The photo gate sits at AWAITING_IMAGE, before perception, so by the time this
+   * fires the photo is already in and "Lihat Hasil" is already enabled — which is
+   * why this copy may point at that button. An earlier version pointed at it while
+   * the gate still had it greyed out; do not reintroduce that by moving the gate
+   * back here without changing this string.
+   */
   screeningComplete: string;
+  /**
+   * Photo request shown on the turn that enters AWAITING_IMAGE, and after the
+   * greeting under the VISUAL_DETECTION_GATE_AT_START test switch.
+   */
+  imageGateOpening: string;
+  /** Turn recorded when a santri submits a photo. Read by the LLM context. */
+  imageSubmitted: string;
+  /** Photo analysed successfully. Deliberately states no verdict. */
+  imageAnalysisDone: string;
+  /** Photo stored but the vision API gave up; screening falls back to the chat. */
+  imageAnalysisFailed: string;
   /** Fallback for the first COLLECTING turn when no symptoms were mentioned. */
   warmup: string;
   /** Fallback when asking how serious the user considers their complaint. */
@@ -88,7 +107,14 @@ const ID: BotTextBundle = {
   hardLimitComplete:
     'Makasih ya udah ngobrol! Sesi ini udah selesai. Kalau ada keluhan baru atau mau cek ulang, kamu bisa mulai sesi baru kapan aja.',
   screeningComplete:
-    'Makasih ya udah cerita! Aku udah selesai analisis hasilnya. Klik tombol di bawah buat lihat hasil skrining kamu.',
+    'Makasih ya udah cerita! Analisis dari obrolan kita dan fotomu udah selesai. Hasil skriningmu siap dibuka — ketuk tombol "Lihat Hasil" di bawah ya.',
+  imageGateOpening:
+    'Sebelum lanjut, kirim satu foto area kulit yang gatal ya. Ketuk tombol + di bawah.',
+  imageSubmitted: 'Santri mengirim satu foto area kulit yang gatal.',
+  imageAnalysisDone:
+    'Fotonya udah aku terima dan berhasil dianalisis. Lanjut ke pertanyaan berikutnya ya.',
+  imageAnalysisFailed:
+    'Fotonya udah masuk, tapi belum berhasil aku analisis. Tenang aja, hasil skrining kamu tetap aku siapkan dari obrolan kita ya. Siap lanjut?',
   warmup: 'Oke! Langsung aja ya, ada keluhan apa sama kulitmu akhir-akhir ini?',
   perceptionSeverity:
     'Oke, info gejala sudah cukup lengkap. Nah menurut kamu, keluhan gatal ini termasuk (1) biasa aja, (2) cukup mengganggu, atau (3) bikin khawatir banget?',
@@ -192,7 +218,14 @@ const EN: BotTextBundle = {
   hardLimitComplete:
     'Thanks for chatting! This session is done. If something new comes up or you want another check, you can start a new session anytime.',
   screeningComplete:
-    'Thanks for sharing! I have finished analysing your answers. Tap the button below to see your screening result.',
+    'Thanks for sharing! I have finished analysing our chat and your photo. Your screening result is ready — tap "See Results" below.',
+  imageGateOpening:
+    'Before we go on, send one photo of the itchy skin area. Tap the + button below.',
+  imageSubmitted: 'The santri submitted a photo of the itchy skin area.',
+  imageAnalysisDone:
+    "Got your photo and analysed it successfully. Let's move on to the next question.",
+  imageAnalysisFailed:
+    "Your photo came through, but I couldn't analyse it. No worries — I'll still put together your screening result from our chat. Ready to continue?",
   warmup: "Okay, let's get right to it — what's been going on with your skin lately?",
   perceptionSeverity:
     'Okay, I have enough about your symptoms. So how would you describe this itching — (1) no big deal, (2) fairly bothersome, or (3) really worrying?',

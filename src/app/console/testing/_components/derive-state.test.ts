@@ -11,6 +11,10 @@ describe('deriveDisplayState', () => {
       expect(deriveDisplayState(null, [], null, 3, 'COLLECTING')).toBe('COLLECTING');
     });
 
+    it('returns AWAITING_IMAGE when phase is AWAITING_IMAGE', () => {
+      expect(deriveDisplayState(null, [], null, 7, 'AWAITING_IMAGE')).toBe('AWAITING_IMAGE');
+    });
+
     it('returns ASKING_PERCEPTION when phase is ASKING_PERCEPTION', () => {
       expect(deriveDisplayState(null, [], null, 8, 'ASKING_PERCEPTION')).toBe('ASKING_PERCEPTION');
     });

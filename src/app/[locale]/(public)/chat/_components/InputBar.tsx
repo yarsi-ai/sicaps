@@ -18,6 +18,8 @@ interface InputBarProps {
   disabled?: boolean;
   chipsActive?: boolean;
   chipsPreview?: string;
+  /** Show highlighted pulse/glow effect on attach button (visual detection) */
+  highlighted?: boolean;
 }
 
 /** line-height for text-sm leading-5 */
@@ -38,6 +40,7 @@ export default function InputBar({
   disabled = false,
   chipsActive = false,
   chipsPreview,
+  highlighted = false,
 }: InputBarProps) {
   const t = useTranslations('chat');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -88,15 +91,18 @@ export default function InputBar({
       >
         <button
           onClick={onAttach}
-          disabled={inputBlocked}
+          disabled={inputBlocked && !highlighted}
           title={t('attachTitle')}
           aria-label={t('attachTitle')}
           className={cx(
-            'flex h-9 w-9 flex-none items-center justify-center rounded-full border-none bg-transparent text-text-faint',
-            inputBlocked ? 'cursor-not-allowed' : 'cursor-pointer',
+            'flex h-10 w-10 flex-none items-center justify-center rounded-full border-none',
+            highlighted
+              ? 'animate-sc-send-glow bg-brand-primary text-text-cream cursor-pointer'
+              : 'bg-transparent text-text-faint',
+            inputBlocked && !highlighted ? 'cursor-not-allowed' : 'cursor-pointer',
           )}
         >
-          <PlusIcon />
+          <PlusIcon color={highlighted ? '#FFF9EC' : undefined} />
         </button>
 
         {/* Textarea */}

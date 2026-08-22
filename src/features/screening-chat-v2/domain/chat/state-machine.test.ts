@@ -124,6 +124,126 @@ describe('nextPhase', () => {
     expect(nextPhase(snapshot)).toBe('ASKING_PERCEPTION');
   });
 
+  it('returns AWAITING_IMAGE when dimensions are complete but no visual result exists', () => {
+    const snapshot = makeSnapshot({
+      dimensiBelum: [],
+      perception: null,
+      hasilDitampilkan: false,
+      imageResolved: false,
+    });
+    expect(nextPhase(snapshot)).toBe('AWAITING_IMAGE');
+  });
+
+  it('treats an absent imageResolved as resolved so pre-gate snapshots are not parked', () => {
+    const snapshot = makeSnapshot({
+      dimensiBelum: [],
+      perception: null,
+      hasilDitampilkan: false,
+    });
+    expect(snapshot.imageResolved).toBeUndefined();
+    expect(nextPhase(snapshot)).toBe('ASKING_PERCEPTION');
+  });
+
+  it('keeps AWAITING_IMAGE ahead of perception even when perception is already known', () => {
+    const snapshot = makeSnapshot({
+      dimensiBelum: [],
+      perception: 'adequate',
+      hasilDitampilkan: false,
+      imageResolved: false,
+    });
+    expect(nextPhase(snapshot)).toBe('AWAITING_IMAGE');
+  });
+
+  it('COLLECTING takes priority over AWAITING_IMAGE', () => {
+    const snapshot = makeSnapshot({
+      dimensiBelum: ['lesi'],
+      perception: null,
+      hasilDitampilkan: false,
+      imageResolved: false,
+    });
+    expect(nextPhase(snapshot)).toBe('COLLECTING');
+  });
+
+  it('soft completion routes to AWAITING_IMAGE instead of skipping the photo gate', () => {
+    const snapshot = makeSnapshot({
+      dimensiBelum: ['lesi'],
+      stagnationCount: 5,
+      perception: null,
+      hasilDitampilkan: false,
+      imageResolved: false,
+    });
+    expect(nextPhase(snapshot)).toBe('AWAITING_IMAGE');
+  });
+
+  it('soft completion routes to ASKING_PERCEPTION once the photo is resolved', () => {
+    const snapshot = makeSnapshot({
+      dimensiBelum: ['lesi'],
+      stagnationCount: 5,
+      perception: null,
+      hasilDitampilkan: false,
+      imageResolved: true,
+    });
+    expect(nextPhase(snapshot)).toBe('ASKING_PERCEPTION');
+  });
+
+  // Stagnation only resets when a dimension gets filled, so once collecting is
+  // finished it climbs forever. Soft completion must not read that as a reason to
+  // keep sending the session back to the perception phase, or the phase becomes
+  // inescapable: the santri is re-asked the same question every turn until the
+  // hard turn limit force-closes the session without ever showing a result.
+  it('advances past ASKING_PERCEPTION once perception is known, however high stagnation is', () => {
+    const snapshot = makeSnapshot({
+      dimensiBelum: ['lesi'],
+      stagnationCount: 30,
+      perception: 'adequate',
+      hasilDitampilkan: false,
+      imageResolved: true,
+    });
+    expect(nextPhase(snapshot)).toBe('SCREENING_COMPLETE');
+  });
+
+  it('does not treat a fully collected session as stagnating', () => {
+    const snapshot = makeSnapshot({
+      dimensiBelum: [],
+      stagnationCount: 30,
+      perception: 'adequate',
+      hasilDitampilkan: false,
+      imageResolved: true,
+    });
+    expect(nextPhase(snapshot)).toBe('SCREENING_COMPLETE');
+  });
+
+  it('still asks for perception when stagnation is high and perception is unknown', () => {
+    const snapshot = makeSnapshot({
+      dimensiBelum: ['lesi'],
+      stagnationCount: 30,
+      perception: null,
+      hasilDitampilkan: false,
+      imageResolved: true,
+    });
+    expect(nextPhase(snapshot)).toBe('ASKING_PERCEPTION');
+  });
+
+  it('keeps collecting when more than one dimension remains, however stagnant', () => {
+    const snapshot = makeSnapshot({
+      dimensiBelum: ['lesi', 'waktu'],
+      stagnationCount: 30,
+      perception: null,
+      hasilDitampilkan: false,
+      imageResolved: true,
+    });
+    expect(nextPhase(snapshot)).toBe('COLLECTING');
+  });
+
+  it('crisis override takes priority over AWAITING_IMAGE', () => {
+    const snapshot = makeSnapshot({
+      dimensiBelum: [],
+      crisisDetected: true,
+      imageResolved: false,
+    });
+    expect(nextPhase(snapshot)).toBe('CLOSED');
+  });
+
   it('returns ASKING_PERCEPTION only when both dimensions and chips are complete', () => {
     const snapshot = makeSnapshot({
       dimensiBelum: [],
@@ -188,6 +308,10 @@ describe('isTerminal', () => {
 
   it('returns false for COLLECTING', () => {
     expect(isTerminal('COLLECTING')).toBe(false);
+  });
+
+  it('returns false for AWAITING_IMAGE', () => {
+    expect(isTerminal('AWAITING_IMAGE')).toBe(false);
   });
 
   it('returns false for ASKING_PERCEPTION', () => {

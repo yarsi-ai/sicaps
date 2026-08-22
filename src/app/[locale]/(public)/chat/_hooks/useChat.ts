@@ -7,6 +7,7 @@ import { useSSE } from '@/hooks/useSSE';
 import { saveActiveSession, clearActiveSession } from '@/hooks/useActiveSession';
 import type { SSEParsedEvent } from '@/hooks/useSSE';
 import { useHistory } from '@/hooks/useHistory';
+import { typingDelayMs } from '@/lib/typing-pace';
 import type { ChatMessage, DemographicsInput } from '@/types/screening-ui';
 import type { ResultPayload } from '@/types/screening-ui-api';
 import type {
@@ -121,7 +122,12 @@ interface ResumeApiResponse {
   turnCount: number;
   dimensiTerisi: Record<string, { keywords: string[]; negasi: string[] }>;
   dimensiBelum: string[];
-  messages?: Array<{ role: 'user' | 'assistant'; content: string; timestamp: string }>;
+  messages?: Array<{
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: string;
+    kind?: 'TEXT' | 'IMAGE';
+  }>;
 }
 
 // ─── Hook ───
@@ -143,6 +149,45 @@ export function useChat(): {
   sendQuickReply: (token: string, label?: string) => void;
   submitChipsAnswer: (selections: string[], freeText?: string, displayText?: string) => void;
   retry: () => void;
+  /** Remove a single message from the transcript by id. Used to clear the
+   * failed image turn before re-uploading so it is not duplicated. */
+  removeMessage: (id: string) => void;
+  /**
+   * Sync the client phase to a value received outside the SSE stream (e.g.
+   * from the image upload response). Keeps ScreeningProvider in sync so the
+   * image gate and input bar stay correct between the upload and the next turn.
+   */
+  updatePhase: (phase: SessionPhase) => void;
+  /**
+   * Append the photo turn, the bot's reply to it, and the question the next
+   * phase owes.
+   *
+   * The server persists every row inside the image POST, but that request is not
+   * the SSE stream, so nothing pushes them into the live view. This mirrors them
+   * locally using the server's own copy — the client never invents the wording.
+   * `followUpMessage` is null when the image did not move the phase forward.
+   *
+   * `imageUrl` may be null when the gate is skipped without a photo (3 failed
+   * uploads) and no image is available. Passing `imageFailure` appends the
+   * bubble with the error style and the caption matching what actually failed —
+   * the transport, or the vision model reading a photo that arrived fine.
+   *
+   * The follow-up is held back behind the typing indicator: all three rows in one
+   * render puts two bot messages on screen in the same instant, which reads worse
+   * than the pause it replaces.
+   */
+  appendImageTurn: (
+    imageUrl: string | null,
+    botMessage: string,
+    followUpMessage: string | null,
+    imageFailure?: 'upload' | 'analysis',
+  ) => void;
+  /**
+   * Append a standalone bot message with typing indicator, without canceling
+   * any pending appendImageTurn timeouts. Used for follow-up questions that
+   * arrive asynchronously after the main image turn is already appended.
+   */
+  appendBotMessage: (text: string) => void;
 } {
   const locale = useLocale();
   const t = useTranslations('chat');
@@ -170,6 +215,25 @@ export function useChat(): {
   const phaseRef = useRef<SessionPhase | null>(null);
   const chipsReceivedThisTurn = useRef(false);
   const processingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /**
+   * Disarm the "no response" safety timer, because the turn has ended one way or
+   * another.
+   *
+   * Every path that stops the typing indicator owes this call. It lives here
+   * rather than inline at each of them because the transport-failure path used to
+   * be the one that forgot: the request died, its error bubble appeared, and then
+   * a second bubble claiming the server never answered arrived thirty seconds
+   * later.
+   */
+  const clearProcessingTimeout = useCallback((): void => {
+    if (processingTimeoutRef.current) {
+      clearTimeout(processingTimeoutRef.current);
+      processingTimeoutRef.current = null;
+    }
+  }, []);
+  /** Holds the deferred follow-up question an image submission returned. */
+  const followUpTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync local phase to provider context
   const updatePhase = useCallback(
@@ -244,10 +308,7 @@ export function useChat(): {
           setTyping(false);
           setIsProcessing(false);
           typingEmitted.current = false;
-          if (processingTimeoutRef.current) {
-            clearTimeout(processingTimeoutRef.current);
-            processingTimeoutRef.current = null;
-          }
+          clearProcessingTimeout();
 
           // Assemble accumulated tokens into a bot message
           if (tokenBufferRef.current) {
@@ -282,10 +343,7 @@ export function useChat(): {
           setTyping(false);
           setIsProcessing(false);
           typingEmitted.current = false;
-          if (processingTimeoutRef.current) {
-            clearTimeout(processingTimeoutRef.current);
-            processingTimeoutRef.current = null;
-          }
+          clearProcessingTimeout();
 
           // Discard partial token buffer (backend already sent fallback text via token —
           // we replace it with a single clean error bubble instead of showing both)
@@ -313,13 +371,14 @@ export function useChat(): {
         }
       }
     },
-    [sessionId, shareToken, updatePhase, t],
+    [sessionId, shareToken, updatePhase, clearProcessingTimeout, t],
   );
 
   const onError = useCallback(() => {
     setTyping(false);
     setIsProcessing(false);
     typingEmitted.current = false;
+    clearProcessingTimeout();
 
     // Flush partial token buffer
     if (tokenBufferRef.current) {
@@ -343,7 +402,7 @@ export function useChat(): {
     setMsgs((prev) => [...prev, errorMessage]);
 
     setConnectionError(true);
-  }, [t]);
+  }, [clearProcessingTimeout, t]);
 
   const { send } = useSSE<SSEParsedEvent>({ onEvent, onError });
 
@@ -369,6 +428,7 @@ export function useChat(): {
                   id: `restored-${idx}`,
                   role: m.role === 'user' ? 'user' : 'bot',
                   text: m.content,
+                  kind: m.kind === 'IMAGE' ? 'image' : 'text',
                   createdAt: m.timestamp,
                 }));
                 setMsgs(chatMessages);
@@ -421,17 +481,33 @@ export function useChat(): {
           saveActiveSession(v2Data.sessionId);
           updatePhase(v2Data.phase);
 
-          // Create a local greeting message (v2 gets bot response via first chat turn)
-          const greeting = t('botGreeting');
-
-          const openingMsg: ChatMessage = {
-            id: crypto.randomUUID(),
-            role: 'bot',
-            text: greeting,
-            createdAt: new Date().toISOString(),
-          };
-          setMsgs([openingMsg]);
+          // Render exactly the opening messages the server persisted, rather than
+          // a client-side copy of the greeting. Each bubble is staggered behind
+          // a typing indicator so it reads as Capi composing a reply rather than
+          // all bubbles landing at once.
           setReady(true);
+
+          let delay = 0;
+          for (const text of v2Data.openingMessages) {
+            const pauseMs = typingDelayMs(text);
+            // Show typing indicator at the start of this message's pause window.
+            setTimeout(() => setTyping(true), delay);
+            delay += pauseMs;
+            const capturedText = text;
+            const capturedDelay = delay;
+            setTimeout(() => {
+              setTyping(false);
+              setMsgs((prev) => [
+                ...prev,
+                {
+                  id: crypto.randomUUID(),
+                  role: 'bot' as const,
+                  text: capturedText,
+                  createdAt: new Date().toISOString(),
+                },
+              ]);
+            }, capturedDelay);
+          }
         } else {
           // V1 flow (original code)
           const v1Data = data as StartApiResponse;
@@ -474,6 +550,11 @@ export function useChat(): {
     }
   }, [finished, result, incognito, addEntry, sessionId, demographics]);
 
+  // The photo request is no longer injected here. It is server-authored copy
+  // carried by `screeningComplete` (or by `openingMessages` when the gate opens
+  // at the start), so it is persisted, ordered, and survives a refresh. A
+  // client-side effect could not offer any of that.
+
   // ─── Send free-text message (disabled during processing) ───
   const sendReply = useCallback(
     (text: string, _optionIndex?: number) => {
@@ -490,7 +571,7 @@ export function useChat(): {
       typingEmitted.current = false;
 
       // Safety timeout: if no response in 30s, reset processing state and show error
-      if (processingTimeoutRef.current) clearTimeout(processingTimeoutRef.current);
+      clearProcessingTimeout();
       processingTimeoutRef.current = setTimeout(() => {
         setIsProcessing(false);
         setTyping(false);
@@ -510,7 +591,7 @@ export function useChat(): {
 
       send('/api/screening/chat', { sessionId, message: text, isVoice: false });
     },
-    [sessionId, finished, isProcessing, send],
+    [sessionId, finished, isProcessing, clearProcessingTimeout, send],
   );
 
   // ─── Send quick-reply token (bypasses extraction) ───
@@ -594,6 +675,107 @@ export function useChat(): {
     send('/api/screening/chat', { sessionId, message: lastAttempt.current.text, isVoice: false });
   }, [sessionId, isProcessing, send]);
 
+  const appendImageTurn = useCallback(
+    (
+      imageUrl: string | null,
+      botMessage: string,
+      followUpMessage: string | null,
+      imageFailure?: 'upload' | 'analysis',
+    ): void => {
+      const at = Date.now();
+
+      // Append the image bubble (if any) immediately — it is a user turn, not a
+      // bot reply, so no typing indicator precedes it.
+      if (imageUrl !== null) {
+        setMsgs((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: 'user' as const,
+            kind: 'image' as const,
+            imageUrl,
+            imageFailure,
+            text: '',
+            createdAt: new Date(at).toISOString(),
+          },
+        ]);
+      }
+
+      // Show typing indicator before the bot reply, then append it after a
+      // natural pause so the exchange reads like Capi composing a message.
+      setTyping(true);
+      if (followUpTimeoutRef.current) clearTimeout(followUpTimeoutRef.current);
+      followUpTimeoutRef.current = setTimeout(() => {
+        setTyping(false);
+        setMsgs((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: 'bot',
+            text: botMessage,
+            createdAt: new Date(at + 1).toISOString(),
+          },
+        ]);
+
+        if (!followUpMessage) {
+          followUpTimeoutRef.current = null;
+          return;
+        }
+
+        // Chain a second typing pause before the follow-up question.
+        setTyping(true);
+        followUpTimeoutRef.current = setTimeout(() => {
+          followUpTimeoutRef.current = null;
+          setTyping(false);
+          setMsgs((prev) => [
+            ...prev,
+            {
+              id: crypto.randomUUID(),
+              role: 'bot',
+              text: followUpMessage,
+              createdAt: new Date(at + 2).toISOString(),
+            },
+          ]);
+        }, typingDelayMs(followUpMessage));
+      }, typingDelayMs(botMessage));
+    },
+    [],
+  );
+
+  // Standalone bot message appender that uses its own timeout ref to avoid
+  // interfering with appendImageTurn's pending timeouts.
+  const botMessageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const appendBotMessage = useCallback((text: string): void => {
+    setTyping(true);
+    if (botMessageTimeoutRef.current) clearTimeout(botMessageTimeoutRef.current);
+    botMessageTimeoutRef.current = setTimeout(() => {
+      botMessageTimeoutRef.current = null;
+      setTyping(false);
+      setMsgs((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: 'bot',
+          text,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+    }, typingDelayMs(text));
+  }, []);
+
+  // The santri can leave for the result page while the follow-up is still
+  // pending, and a timer that outlives the hook would fire into a dead setState.
+  useEffect(() => {
+    return () => {
+      if (followUpTimeoutRef.current) clearTimeout(followUpTimeoutRef.current);
+      if (botMessageTimeoutRef.current) clearTimeout(botMessageTimeoutRef.current);
+    };
+  }, []);
+
+  const removeMessage = useCallback((id: string): void => {
+    setMsgs((prev) => prev.filter((m) => m.id !== id));
+  }, []);
+
   return {
     ready,
     msgs,
@@ -610,5 +792,9 @@ export function useChat(): {
     sendQuickReply,
     submitChipsAnswer,
     retry,
+    appendImageTurn,
+    appendBotMessage,
+    removeMessage,
+    updatePhase,
   };
 }

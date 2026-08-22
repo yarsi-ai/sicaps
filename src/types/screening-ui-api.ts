@@ -65,4 +65,10 @@ export interface ResultResponseV2 {
   aiPerceptionResponse: string | null;
   aiRecommendation: string | null;
   aiSuggestion: string | null;
+  /** Visual detection result (POSITIVE/NEGATIVE) from image analysis */
+  visualResult: 'POSITIVE' | 'NEGATIVE' | null;
+  /** Combined final output from chat risk + visual detection */
+  finalOutput: 'SUSPECTED_SCABIES' | 'NOT_SCABIES' | null;
+  /** Whether visual prediction failed after exhausting retries */
+  visualPredictionFailed: boolean;
 }

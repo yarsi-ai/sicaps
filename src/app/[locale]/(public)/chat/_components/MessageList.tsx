@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { useAutoScroll } from '@/hooks/useAutoScroll';
 import ChatBubble from './ChatBubble';
+import ChatImageBubble from './ChatImageBubble';
 import type { ChatMessage } from '@/types/screening-ui';
 
 interface MessageListProps {
@@ -12,6 +13,24 @@ interface MessageListProps {
   speakingId: string | null;
   onSpeak: (id: string, text: string) => void;
   incognito?: boolean;
+  /**
+   * Rendered while a photo is being submitted, before its turn exists in the
+   * message list. Once the submission resolves the turn takes over.
+   */
+  pending?: React.ReactNode;
+  /** Extra token appended to the auto-scroll key so `pending` changes scroll too. */
+  pendingKey?: string;
+  /** Called when a santri taps an image turn to view it larger. */
+  onExpandImage?: (imageUrl: string) => void;
+  /**
+   * Called when the santri taps the retry button on a failed image turn that
+   * was already committed to the transcript (i.e. `imageFailure` is set). The
+   * message id is passed so ChatScreen can remove the stale row before
+   * re-uploading.
+   */
+  onRetryImage?: (messageId: string) => void;
+  /** How many upload attempts remain, forwarded to the retry button label. */
+  imageRetryAttemptsLeft?: number;
 }
 
 export default function MessageList({
@@ -21,9 +40,14 @@ export default function MessageList({
   speakingId,
   onSpeak,
   incognito,
+  pending,
+  pendingKey = '',
+  onExpandImage,
+  onRetryImage,
+  imageRetryAttemptsLeft,
 }: MessageListProps) {
   const t = useTranslations('chat');
-  const { scrollRef } = useAutoScroll(`${messages.length}-${typing}-${finished}`);
+  const { scrollRef } = useAutoScroll(`${messages.length}-${typing}-${finished}-${pendingKey}`);
 
   return (
     <div
@@ -39,9 +63,28 @@ export default function MessageList({
       >
         {t('start')}
       </div>
-      {messages.map((m) => (
-        <ChatBubble key={m.id} message={m} speaking={speakingId === m.id} onSpeak={onSpeak} />
-      ))}
+      {messages.map((m) =>
+        m.kind === 'image' ? (
+          // The photo keeps its place in the transcript because it is a real
+          // message row. `imageUrl` is absent on a restored session, which is
+          // what makes the bubble fall back to its locked state.
+          <ChatImageBubble
+            key={m.id}
+            src={m.imageUrl ?? null}
+            status={m.imageFailure ? 'error' : 'done'}
+            failureReason={m.imageFailure === 'analysis' ? 'analysis' : 'upload'}
+            createdAt={m.createdAt}
+            onExpand={
+              m.imageUrl && onExpandImage ? () => onExpandImage(m.imageUrl as string) : undefined
+            }
+            onRetry={m.imageFailure && onRetryImage ? () => onRetryImage(m.id) : undefined}
+            attemptsLeft={imageRetryAttemptsLeft}
+          />
+        ) : (
+          <ChatBubble key={m.id} message={m} speaking={speakingId === m.id} onSpeak={onSpeak} />
+        ),
+      )}
+      {pending}
       {typing && (
         <div
           className="flex w-fit gap-1.5 self-start rounded-bubble-bot border-2 border-border-strong bg-surface-bubble-bot px-3.5 py-2.5"

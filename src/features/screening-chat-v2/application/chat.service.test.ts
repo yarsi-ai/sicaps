@@ -161,6 +161,10 @@ function buildSessionMock(overrides: Record<string, unknown> = {}) {
     conflictDimension: null,
     conflictClarified: false,
     stagnationCount: 0,
+    perceptionStartTurn: null,
+    // Null means the perception phase has not asked anything yet, so a reply is
+    // not treated as an answer to either of its two questions.
+    perceptionStep: null,
     ...overrides,
   };
 }
@@ -845,5 +849,291 @@ describe('processChatTurn', () => {
       const doneEvent = events.find((e) => e.type === 'done');
       expect(doneEvent).toBeDefined();
     });
+  });
+});
+
+// 12. Continuation response after image upload
+describe('continuation response handling', () => {
+  it('asks perception severity when user confirms continuation with "siap"', async () => {
+    // Simulates user responding "siap" after seeing "Siap lanjut?" from image upload
+    setupHappyPathMocks({
+      phase: 'ASKING_PERCEPTION',
+      dimensiBelum: [],
+      dimensiTerisi: {
+        intensitas: { keywords: ['gatal parah'], negasi: [] },
+        waktu: { keywords: ['lebih 2 minggu'], negasi: [] },
+        lokasi_tubuh: { keywords: ['sela jari'], negasi: [] },
+        kontak: { keywords: ['teman sekamar gatal'], negasi: [] },
+        lesi: { keywords: ['ada lesi'], negasi: [] },
+        faktor_risiko: { keywords: ['kamar padat'], negasi: [] },
+      },
+      perception: null,
+    });
+
+    // Mock LLM for perception severity compose
+    const mockClient = createMockLLMClient('{}', [
+      'Nah menurut kamu, keluhan gatal ini termasuk...',
+    ]);
+    mockGetPrimaryClient.mockReturnValue(mockClient as never);
+
+    const stream = await processChatTurn({
+      sessionId: SESSION_ID,
+      message: 'siap',
+      isVoice: false,
+    });
+
+    const raw = await consumeStream(stream);
+    const events = parseSSEEvents(raw);
+
+    // Should emit token event with perception severity question
+    const tokenEvents = events.filter((e) => e.type === 'token');
+    expect(tokenEvents.length).toBeGreaterThan(0);
+
+    // Done event still present
+    const doneEvent = events.find((e) => e.type === 'done');
+    expect(doneEvent).toBeDefined();
+  });
+
+  it('asks perception severity when user confirms with "lanjut"', async () => {
+    setupHappyPathMocks({
+      phase: 'ASKING_PERCEPTION',
+      dimensiBelum: [],
+      dimensiTerisi: {
+        intensitas: { keywords: ['gatal'], negasi: [] },
+        waktu: { keywords: ['seminggu'], negasi: [] },
+        lokasi_tubuh: { keywords: ['tangan'], negasi: [] },
+        kontak: { keywords: ['tidak ada'], negasi: [] },
+        lesi: { keywords: ['bintik'], negasi: [] },
+        faktor_risiko: { keywords: ['asrama'], negasi: [] },
+      },
+      perception: null,
+    });
+
+    const mockClient = createMockLLMClient('{}', ['Oke, menurut kamu...']);
+    mockGetPrimaryClient.mockReturnValue(mockClient as never);
+
+    const stream = await processChatTurn({
+      sessionId: SESSION_ID,
+      message: 'lanjut',
+      isVoice: false,
+    });
+
+    const raw = await consumeStream(stream);
+    const events = parseSSEEvents(raw);
+
+    const tokenEvents = events.filter((e) => e.type === 'token');
+    expect(tokenEvents.length).toBeGreaterThan(0);
+  });
+
+  it('asks perception severity when user confirms with English "ready"', async () => {
+    setupHappyPathMocks({
+      locale: 'en',
+      phase: 'ASKING_PERCEPTION',
+      dimensiBelum: [],
+      dimensiTerisi: {
+        intensitas: { keywords: ['itchy'], negasi: [] },
+        waktu: { keywords: ['week'], negasi: [] },
+        lokasi_tubuh: { keywords: ['hands'], negasi: [] },
+        kontak: { keywords: ['none'], negasi: [] },
+        lesi: { keywords: ['bumps'], negasi: [] },
+        faktor_risiko: { keywords: ['dorm'], negasi: [] },
+      },
+      perception: null,
+    });
+
+    const mockClient = createMockLLMClient('{}', ['So, how would you describe...']);
+    mockGetPrimaryClient.mockReturnValue(mockClient as never);
+
+    const stream = await processChatTurn({
+      sessionId: SESSION_ID,
+      message: 'ready',
+      isVoice: false,
+    });
+
+    const raw = await consumeStream(stream);
+    const events = parseSSEEvents(raw);
+
+    const tokenEvents = events.filter((e) => e.type === 'token');
+    expect(tokenEvents.length).toBeGreaterThan(0);
+  });
+});
+
+// 13. Perception step bookkeeping
+//
+// The perception phase asks two questions in sequence, and every one of these
+// tests is about the same thing: an answer belongs to the question that was
+// actually asked. Losing track of that produced a phase that never ended —
+// the severity question was re-composed on every turn, worded slightly
+// differently each time, until the hard turn limit force-closed the session.
+describe('perception step bookkeeping', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  /** A session that has arrived in the perception phase with everything collected. */
+  function arrangePerceptionTurn(overrides: Record<string, unknown> = {}) {
+    return setupHappyPathMocks({
+      phase: 'ASKING_PERCEPTION',
+      dimensiBelum: [],
+      dimensiTerisi: {
+        intensitas: { keywords: ['gatal parah'], negasi: [] },
+        waktu: { keywords: ['lebih 2 minggu'], negasi: [] },
+        lokasi_tubuh: { keywords: ['sela jari'], negasi: [] },
+        kontak: { keywords: ['teman sekamar gatal'], negasi: [] },
+        lesi: { keywords: ['ada lesi'], negasi: [] },
+        faktor_risiko: { keywords: ['kamar padat'], negasi: [] },
+      },
+      chipsAnswered: ['kontak', 'lokasi', 'asrama', 'tukar_alat'],
+      perception: null,
+      ...overrides,
+    });
+  }
+
+  /** Every `perception` value written to the session this turn. */
+  function writtenPerceptions(): unknown[] {
+    return (
+      mockSessionUpdate.mock.calls
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((call) => (call[0] as any).data?.perception)
+        .filter((value) => value !== undefined)
+    );
+  }
+
+  /** Every `perceptionStep` value written to the session this turn. */
+  function writtenSteps(): unknown[] {
+    return (
+      mockSessionUpdate.mock.calls
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((call) => (call[0] as any).data?.perceptionStep)
+        .filter((value) => value !== undefined)
+    );
+  }
+
+  it('does not read a reply to "Siap lanjut?" as a perception answer', async () => {
+    // The failed-photo copy ends by asking "Siap lanjut?", so "siap" answers that
+    // question and nothing else. Read as a perception answer it looked like a
+    // denial — "no barrier" — and resolved perception to ADEQUATE before the
+    // santri had been asked anything.
+    arrangePerceptionTurn({ perceptionStep: null });
+
+    const mockClient = createMockLLMClient('{}', ['Nah menurut kamu, keluhan ini...']);
+    mockGetPrimaryClient.mockReturnValue(mockClient as never);
+
+    const stream = await processChatTurn({
+      sessionId: SESSION_ID,
+      message: 'siap',
+      isVoice: false,
+    });
+    await consumeStream(stream);
+
+    expect(writtenPerceptions()).toEqual([]);
+    expect(writtenSteps()).toEqual(['ASK_SEVERITY']);
+  });
+
+  it('records the severity question as asked, so the next turn can answer it', async () => {
+    arrangePerceptionTurn({ perceptionStep: null, turnCount: 9 });
+
+    const mockClient = createMockLLMClient('{}', ['Menurut kamu...']);
+    mockGetPrimaryClient.mockReturnValue(mockClient as never);
+
+    const stream = await processChatTurn({
+      sessionId: SESSION_ID,
+      message: 'siap',
+      isVoice: false,
+    });
+    await consumeStream(stream);
+
+    // Stamped when the question is asked rather than when the phase is entered:
+    // an upload can enter the phase without asking anything.
+    expect(mockSessionUpdate).toHaveBeenCalledWith({
+      where: { id: SESSION_ID },
+      data: { perceptionStep: 'ASK_SEVERITY', perceptionStartTurn: 10 },
+    });
+  });
+
+  it('follows a severity answer with the barrier question, not the severity question again', async () => {
+    arrangePerceptionTurn({ perceptionStep: 'ASK_SEVERITY' });
+
+    const mockClient = createMockLLMClient('{}', ['Oke noted, terus ada ga yang bikin ragu?']);
+    mockGetPrimaryClient.mockReturnValue(mockClient as never);
+
+    const stream = await processChatTurn({
+      sessionId: SESSION_ID,
+      message: '1',
+      isVoice: false,
+    });
+    await consumeStream(stream);
+
+    // "1" is a severity, so perception is not resolved yet — the barrier question
+    // still has to be asked.
+    expect(writtenPerceptions()).toEqual([]);
+    expect(writtenSteps()).toEqual(['ASK_BARRIER']);
+  });
+
+  it('treats "biasa" as a severity rather than a denial', async () => {
+    arrangePerceptionTurn({ perceptionStep: 'ASK_SEVERITY' });
+
+    const mockClient = createMockLLMClient('{}', ['Oke noted...']);
+    mockGetPrimaryClient.mockReturnValue(mockClient as never);
+
+    const stream = await processChatTurn({
+      sessionId: SESSION_ID,
+      message: 'biasa',
+      isVoice: false,
+    });
+    await consumeStream(stream);
+
+    expect(writtenPerceptions()).toEqual([]);
+    expect(writtenSteps()).toEqual(['ASK_BARRIER']);
+  });
+
+  it('resolves perception to ADEQUATE when the barrier question is denied', async () => {
+    arrangePerceptionTurn({ perceptionStep: 'ASK_BARRIER' });
+
+    const mockClient = createMockLLMClient('{}', ['Sip!']);
+    mockGetPrimaryClient.mockReturnValue(mockClient as never);
+
+    const stream = await processChatTurn({
+      sessionId: SESSION_ID,
+      message: 'ga ada',
+      isVoice: false,
+    });
+    await consumeStream(stream);
+
+    expect(writtenPerceptions()).toEqual(['ADEQUATE']);
+  });
+
+  it('resolves perception to BARRIER when a barrier is named', async () => {
+    arrangePerceptionTurn({ perceptionStep: 'ASK_BARRIER' });
+
+    const mockClient = createMockLLMClient('{}', ['Gapapa...']);
+    mockGetPrimaryClient.mockReturnValue(mockClient as never);
+
+    const stream = await processChatTurn({
+      sessionId: SESSION_ID,
+      message: 'malu sih',
+      isVoice: false,
+    });
+    await consumeStream(stream);
+
+    expect(writtenPerceptions()).toEqual(['BARRIER']);
+  });
+
+  it('still records a volunteered barrier on the severity turn', async () => {
+    // Naming a barrier unprompted is real signal, not an ambiguous shape, so it
+    // counts whichever question was on the table.
+    arrangePerceptionTurn({ perceptionStep: 'ASK_SEVERITY' });
+
+    const mockClient = createMockLLMClient('{}', ['Gapapa...']);
+    mockGetPrimaryClient.mockReturnValue(mockClient as never);
+
+    const stream = await processChatTurn({
+      sessionId: SESSION_ID,
+      message: 'takut diketawain',
+      isVoice: false,
+    });
+    await consumeStream(stream);
+
+    expect(writtenPerceptions()).toEqual(['BARRIER']);
   });
 });

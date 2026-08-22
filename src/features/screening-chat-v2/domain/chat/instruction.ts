@@ -590,6 +590,11 @@ export function buildComposePrompt(phase: SessionPhase, state: InstructionContex
       return buildOfferingResultPrompt(state.locale);
     case 'SCREENING_COMPLETE':
       return buildScreeningCompletePrompt(state);
+    // The photo gate answers with static copy in chat.service, so compose is not
+    // expected to run here. Listed explicitly so it cannot slip into `default`
+    // unnoticed and have the model invent a clinical question mid-upload.
+    case 'AWAITING_IMAGE':
+      return buildFallbackPrompt(phase, state.locale);
     case 'FOLLOW_UP':
       return buildFallbackPrompt(phase, state.locale);
     case 'CLOSED':

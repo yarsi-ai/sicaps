@@ -5,11 +5,17 @@
  * Indonesian domain terms preserved in English form in code.
  */
 
-// --- Session Phase (7-phase state machine) ---
+// --- Session Phase (8-phase state machine) ---
 
 export type SessionPhase =
   | 'GREETING'
   | 'COLLECTING'
+  /**
+   * Mandatory photo gate. Entered once the clinical dimensions are gathered and
+   * left only when a visual result has been recorded, so `SCREENING_COMPLETE`
+   * genuinely means complete rather than "complete except for the photo".
+   */
+  | 'AWAITING_IMAGE'
   | 'ASKING_PERCEPTION'
   | 'OFFERING_RESULT'
   | 'SCREENING_COMPLETE'

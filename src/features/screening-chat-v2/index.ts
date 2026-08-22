@@ -10,6 +10,7 @@
 export { processChatTurn } from './application/chat.service';
 export {
   createSession,
+  advancePhaseAfterImage,
   getResult,
   getSessionState,
   resumeSession,

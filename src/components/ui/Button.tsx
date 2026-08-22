@@ -35,6 +35,9 @@ export default function Button({
         'cursor-pointer font-display font-normal transition-transform active:scale-[0.98]',
         VARIANT_CLASSES[variant],
         SIZE_CLASSES[size],
+        // Without this a disabled button is indistinguishable from an enabled
+        // one, which reads as an unresponsive app rather than a blocked action.
+        'disabled:cursor-not-allowed disabled:opacity-45 disabled:active:scale-100',
         fullWidth && 'w-full',
         className,
       )}

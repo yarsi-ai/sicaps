@@ -3,17 +3,17 @@
 > **Reference:** [PRD.md](./PRD.md) | [TECHNICAL_SPEC.md](./TECHNICAL_SPEC.md) | [AI_BOT_SPEC.md](./phase-1/AI_BOT_SPEC.md)  
 > **Database:** PostgreSQL (Supabase)  
 > **ORM:** Prisma  
-> **Last updated:** June 23, 2026
+> **Last updated:** 23 Juni 2026
 
 ---
 
 ## 1. Overview
 
-This document is the **single source of truth** for SICAPS database design. Covers schema definition, indexing strategy, RLS policies, data retention, and migration roadmap.
+Dokumen ini adalah **single source of truth** untuk desain database SICAPS. Mencakup schema definition, indexing strategy, RLS policies, data retention, dan migration roadmap.
 
 ### 1.1 Conventions
 
-| Layer          | Convention                               | Example              |
+| Layer          | Convention                               | Contoh               |
 | -------------- | ---------------------------------------- | -------------------- |
 | Prisma model   | PascalCase                               | `ScreeningSession`   |
 | Prisma field   | camelCase                                | `totalScore`         |
@@ -21,16 +21,16 @@ This document is the **single source of truth** for SICAPS database design. Cove
 | DB table name  | snake_case (via `@@map`)                 | `screening_session`  |
 | DB column name | snake_case (via `@map`)                  | `total_score`        |
 | Primary key    | UUID v4                                  | `@default(uuid())`   |
-| Timestamps     | `createdAt` + `updatedAt` (if mutable)   | `DateTime`           |
-| Soft delete    | `deletedAt` nullable timestamp           | Only on root entity  |
+| Timestamps     | `createdAt` + `updatedAt` (jika mutable) | `DateTime`           |
+| Soft delete    | `deletedAt` nullable timestamp           | Hanya di root entity |
 
 ### 1.2 Design Principles
 
-- **JSON (JSONB) for flexible data** — extraction, scores, and category arrays stored as JSONB. Research done via export, not direct SQL queries on nested data.
-- **Soft delete on root entity only** — `deletedAt` only on `ScreeningSession`. Child records follow parent; hard purge uses `ON DELETE CASCADE`.
-- **Derived data that is queried is stored** — `totalScore` and `riskLevel` stored for indexing/filtering. `chatTheme` derived at runtime from `educationLevel`.
-- **Locale at session level, not demographics** — language affects entire session, not just respondent profile.
-- **Permanent data for research** — no auto-expiry. Privacy handled via anonymity.
+- **JSON (JSONB) untuk data fleksibel** — extraction, scores, dan array categories disimpan sebagai JSONB. Riset dilakukan via export, bukan direct SQL query pada nested data.
+- **Soft delete di root entity saja** — `deletedAt` hanya di `ScreeningSession`. Child records mengikuti parent; hard purge menggunakan `ON DELETE CASCADE`.
+- **Derived data yang di-query disimpan** — `totalScore` dan `riskLevel` disimpan untuk indexing/filtering. `chatTheme` di-derive runtime dari `educationLevel`.
+- **Locale di session, bukan demographics** — bahasa mempengaruhi seluruh sesi, bukan hanya profil responden.
+- **Data permanen untuk riset** — tidak ada auto-expiry. Privacy ditangani via anonimitas.
 
 ---
 
@@ -97,7 +97,7 @@ erDiagram
         enum evaluatorType
     }
 
-    %% === Phase 2 ===
+    %% === Fase 2 ===
     User ||--o{ ScreeningSession : "owns"
     User ||--o{ DoctorReview : "writes (as doctor)"
     User ||--o{ Respondent : "manages (as cadre)"
@@ -190,7 +190,7 @@ enum ReviewAction {
 }
 ```
 
-**DB mapping:** Prisma enums stored as PostgreSQL native enum types.
+**DB mapping:** Prisma enums disimpan sebagai PostgreSQL native enum types.
 
 ---
 
@@ -198,8 +198,7 @@ enum ReviewAction {
 
 ### 4.1 ScreeningSession
 
-Root entity for each screening session. **This definition only covers MVP fields and relations.**
-
+Root entity untuk setiap sesi screening. **Definisi ini hanya mencakup fields dan relations MVP.**
 
 ```prisma
 model ScreeningSession {
@@ -213,7 +212,7 @@ model ScreeningSession {
 
   // Adaptive flow state
   categoriesCovered   Json            @default("[]") @map("categories_covered")
-  // Type: string[] — example: ["intensitas", "waktu", "lokasi_tubuh"]
+  // Type: string[] — contoh: ["intensitas", "waktu", "lokasi_tubuh"]
 
   // Final scoring (derived, stored for indexing)
   scores              Json?           @map("scores")
@@ -222,7 +221,7 @@ model ScreeningSession {
   riskLevel           RiskLevel?      @map("risk_level")
   perception          Perception?     @map("perception")
 
-  // AI Output (4 parts)
+  // AI Output (4 bagian)
   aiConclusion        String?         @map("ai_conclusion")
   aiPerceptionResponse String?        @map("ai_perception_response")
   aiRecommendation    String?         @map("ai_recommendation")
@@ -256,36 +255,36 @@ model ScreeningSession {
 }
 ```
 
-**Notes:**
+**Catatan:**
 
-- `mode` — `"ai"` (default, LLM available) or `"questionnaire"` (degraded, LLM unavailable). Updated when degradation occurs mid-session.
-- `source` — `"production"` (from main feature) or `"testing"` (from testing console). Used for CSV export filtering. Default "production" so existing data is unaffected.
-- `categoriesCovered` — real-time tracking of filled categories. Updated each turn.
-- `scores` — JSON object of scores per category (rich format: {raw, capped, status}). Only filled when screening COMPLETED.
-- `totalScore` + `riskLevel` — denormalized from `scores` for indexing/filtering.
-- `promptVersion` — system prompt version used during this session. For audit trail.
-- `scoringVersion` — scoring engine/pattern table version used. For research reproducibility.
+- `mode` — `"ai"` (default, LLM available) atau `"questionnaire"` (degraded, LLM unavailable). Diupdate saat degradation terjadi mid-session.
+- `source` — `"production"` (dari fitur utama) atau `"testing"` (dari console testing). Digunakan untuk filter export CSV. Default "production" supaya existing data tidak terpengaruh.
+- `categoriesCovered` — tracking real-time kategori yang sudah filled. Diupdate setiap turn.
+- `scores` — JSON object skor per kategori (rich format: {raw, capped, status}). Hanya diisi saat screening COMPLETED.
+- `totalScore` + `riskLevel` — denormalized dari `scores` untuk indexing/filtering.
+- `promptVersion` — versi system prompt yang digunakan saat sesi ini berjalan. Untuk audit trail.
+- `scoringVersion` — versi scoring engine/pattern table yang digunakan. Untuk reproducibility riset.
 - `deletedAt` — soft delete. NULL = active, timestamp = deleted.
-- `chatTheme` **not stored** — always derived from `demographics.educationLevel`.
+- `chatTheme` **tidak disimpan** — selalu derive dari `demographics.educationLevel`.
 
-**Fields added in Phase 2 (see §5):**
+**Fields ditambahkan di Fase 2 (lihat §5):**
 
-- `userId` — FK to User (MVP always null / anonymous)
-- `isIncognito` — incognito mode toggle
-- Relations to `User`, `DoctorReview`, `ScreeningImage`
+- `userId` — FK ke User (MVP selalu null / anonim)
+- `isIncognito` — toggle incognito mode
+- Relasi ke `User`, `DoctorReview`, `ScreeningImage`
 
 ---
 
 ### 4.2 Demographics
 
-Respondent demographic data. 1:1 relation with ScreeningSession.
+Data demografi responden. Relasi 1:1 dengan ScreeningSession.
 
 ```prisma
 model Demographics {
   id              String            @id @default(uuid()) @map("id")
   sessionId       String            @unique @map("session_id")
 
-  // Fields (from pre-chat form)
+  // Fields (dari pre-chat form)
   name            String?           @map("name")
   age             Int               @map("age")
   gender          String            @map("gender")        // "male" | "female"
@@ -301,19 +300,18 @@ model Demographics {
 }
 ```
 
-**Notes:**
+**Catatan:**
 
-- `educationLevel` determines AI language tone: `elementary` → playful (casual, emoji), others → hybrid (polite, minimal emoji). Visual UI remains same for all.
-- `name` optional — user may leave blank.
-- `gender` stored as string (not enum) for international flexibility.
-- No `language` field — locale stored in `ScreeningSession.locale`.
-
+- `educationLevel` menentukan nada bahasa AI: `elementary` → playful (kasual, emoji), lainnya → hybrid (sopan, minimal emoji). Visual UI tetap sama untuk semua.
+- `name` opsional — user boleh tidak mengisi.
+- `gender` disimpan sebagai string (bukan enum) untuk fleksibilitas internasional.
+- Tidak ada field `language` — locale disimpan di `ScreeningSession.locale`.
 
 ---
 
 ### 4.3 ChatMessage
 
-Full chat transcript. Each bubble (user or bot) = 1 row.
+Full chat transcript. Setiap bubble (user atau bot) = 1 row.
 
 ```prisma
 model ChatMessage {
@@ -334,17 +332,17 @@ model ChatMessage {
 }
 ```
 
-**Notes:**
+**Catatan:**
 
-- `isVoice` — true if input came from STT (voice), useful for research comparing voice vs text.
-- Max ~14 messages per session (7 turns × 2). Very small volume.
-- Ordering: `createdAt ASC` to display chat sequentially.
+- `isVoice` — true jika input berasal dari STT (voice), berguna untuk riset perbandingan voice vs text.
+- Maks ~14 messages per session (7 turns × 2). Volume sangat kecil.
+- Ordering: `createdAt ASC` untuk menampilkan chat berurutan.
 
 ---
 
 ### 4.4 TurnExtraction
 
-Extraction data that is **schema-valid** — safe for scoring engine. Only created when LLM response passes full Zod schema validation (`parseStatus = SUCCESS`).
+Extraction data yang **schema-valid** — safe untuk scoring engine. Hanya dibuat saat LLM response pass full Zod schema validation (`parseStatus = SUCCESS`).
 
 ```prisma
 model TurnExtraction {
@@ -363,7 +361,7 @@ model TurnExtraction {
   //   faktor_risiko: [...]
   // }
 
-  // Backend matching scores (JSONB)
+  // Skor hasil matching backend (JSONB)
   scores      Json             @map("scores")
   // Type: { intensitas: CategoryScore, waktu: CategoryScore, ... }
 
@@ -377,18 +375,18 @@ model TurnExtraction {
 }
 ```
 
-**Notes:**
+**Catatan:**
 
-- `@@unique([sessionId, turnNumber])` — prevents duplicate turns in 1 session.
-- **Only created on parse SUCCESS** — scoring engine safe to read all records without defensive checks.
-- `extraction` — guaranteed to have all 6 categories as arrays (may be empty but always present).
-- `scores` — snapshot of scores per category from this turn (not cumulative).
+- `@@unique([sessionId, turnNumber])` — mencegah duplikat turn dalam 1 session.
+- **HANYA dibuat saat parse SUCCESS** — scoring engine aman membaca semua records tanpa defensive checks.
+- `extraction` — guaranteed memiliki semua 6 kategori sebagai arrays (bisa kosong tapi pasti ada).
+- `scores` — snapshot skor per kategori dari turn ini (bukan kumulatif).
 
 ---
 
 ### 4.5 TurnLog
 
-Audit trail for **all turns** (success, partial, failure). Stores raw LLM response and metadata. For observability and prompt evaluation — NOT for scoring.
+Audit trail untuk **semua turn** (success, partial, failure). Menyimpan raw LLM response dan metadata. Untuk observability dan prompt evaluation — BUKAN untuk scoring.
 
 ```prisma
 model TurnLog {
@@ -440,24 +438,23 @@ model TurnLog {
 }
 ```
 
-**Notes:**
+**Catatan:**
 
-- **Always created** — every turn (success/partial/failure) has 1 TurnLog record.
-- `userMessage` — user message that triggered this LLM call. Also stored here for easy export without JOIN to ChatMessage.
-- `rawResponse` — full JSON string returned by LLM. May be invalid JSON on failure case.
-- `parseStatus` — determines if this turn also has a `TurnExtraction` record (only SUCCESS).
-- `parseError` — error message when parse failed (null if success).
-- `systemMessage` — full system prompt used. Stored for comparing performance across prompt versions.
-- `onDelete` — currently uses default Restrict (not Cascade). Will add Cascade in corrective migration.
-- Scoring engine **NEVER reads** this table — only test page and export.
-- **Planned indexes** (not yet migrated): `@@unique([sessionId, turnNumber])`, `@@index([parseStatus])`, `@@index([model])`. Will add when data volume increases.
-
+- **Selalu dibuat** — setiap turn (success/partial/failure) pasti punya 1 TurnLog record.
+- `userMessage` — pesan user yang trigger LLM call ini. Disimpan di sini juga untuk kemudahan export tanpa JOIN ke ChatMessage.
+- `rawResponse` — full JSON string yang dikembalikan LLM. Bisa invalid JSON pada failure case.
+- `parseStatus` — menentukan apakah turn ini juga punya `TurnExtraction` record (hanya SUCCESS).
+- `parseError` — error message saat parse gagal (null jika success).
+- `systemMessage` — full system prompt yang digunakan. Disimpan untuk membandingkan kinerja antar prompt version.
+- `onDelete` — saat ini menggunakan default Restrict (bukan Cascade). Akan ditambahkan Cascade di corrective migration mendatang.
+- Scoring engine **TIDAK pernah membaca** tabel ini — hanya test page dan export.
+- **Planned indexes** (belum di-migrate): `@@unique([sessionId, turnNumber])`, `@@index([parseStatus])`, `@@index([model])`. Akan ditambahkan saat volume data meningkat.
 
 ---
 
 ### 4.6 EvaluationFeedback
 
-Per-turn accuracy feedback from developer/doctor/researcher. For building gold dataset.
+Feedback akurasi per turn dari developer/dokter/researcher. Untuk membangun gold dataset.
 
 ```prisma
 model EvaluationFeedback {
@@ -467,8 +464,8 @@ model EvaluationFeedback {
 
   evaluatorType EvaluatorType @map("evaluator_type")  // required, no default
   isAccurate    Boolean       @map("is_accurate")
-  notes         String?       @db.Text                // reason why not accurate
-  promptVersion String        @map("prompt_version")  // prompt version at evaluation time
+  notes         String?       @db.Text                // alasan kenapa tidak akurat
+  promptVersion String        @map("prompt_version")  // versi prompt saat evaluasi
 
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
@@ -483,38 +480,38 @@ model EvaluationFeedback {
 }
 ```
 
-**Notes:**
+**Catatan:**
 
-- `@@unique([sessionId, turnNumber, evaluatorType])` — one evaluator can only give 1 feedback per turn. Upsert to update.
-- `evaluatorType` — **required with no default**. Caller must explicitly provide evaluator type.
-- `updatedAt` — auto-updated when feedback is upserted.
-- `promptVersion` — saved from session when feedback is given, for grouping in export.
-- One turn can have multiple feedbacks (developer + doctor) — inter-rater agreement.
-- `notes` — free text, optional. Useful for noting "should have extracted X but missed" or "hallucinated keyword Y".
-- `onDelete` — currently uses default Restrict (not Cascade). Will add Cascade in corrective migration.
-- **Planned indexes** (not yet migrated): `@@index([promptVersion])`, `@@index([evaluatorType, isAccurate])`. Will add when data volume increases.
+- `@@unique([sessionId, turnNumber, evaluatorType])` — satu evaluator hanya bisa kasih 1 feedback per turn. Upsert untuk update.
+- `evaluatorType` — **required tanpa default**. Caller harus explicitly provide tipe evaluator.
+- `updatedAt` — otomatis diupdate saat feedback di-upsert.
+- `promptVersion` — disimpan dari session saat feedback diberi, untuk grouping di export.
+- Satu turn bisa punya multiple feedback (developer + doctor) — inter-rater agreement.
+- `notes` — free text, opsional. Berguna untuk mencatat "harusnya extract X tapi miss" atau "hallucinated keyword Y".
+- `onDelete` — saat ini menggunakan default Restrict (bukan Cascade). Akan ditambahkan Cascade di corrective migration mendatang.
+- **Planned indexes** (belum di-migrate): `@@index([promptVersion])`, `@@index([evaluatorType, isAccurate])`. Akan ditambahkan saat volume data meningkat.
 
 ---
 
-## 5. Phase 2 Tables (Planned)
+## 5. Fase 2 Tables (Planned)
 
-> **Status:** Not yet implemented. Definitions below are initial designs that may change when Phase 2 begins.
+> **Status:** Belum diimplementasi. Definisi di bawah adalah rancangan awal yang bisa berubah saat Fase 2 dimulai.
 
-### 5.0 Alterations to ScreeningSession (Phase 2)
+### 5.0 Alterations ke ScreeningSession (Fase 2)
 
-The following fields are added to `ScreeningSession` in Phase 2:
+Fields berikut ditambahkan ke `ScreeningSession` saat Fase 2:
 
 ```prisma
-// Additional fields in ScreeningSession (Phase 2)
-  userId              String?         @map("user_id") // FK to User, null = anonymous
+// Tambahan field di ScreeningSession (Fase 2)
+  userId              String?         @map("user_id") // FK ke User, null = anonim
   isIncognito         Boolean         @default(false) @map("is_incognito")
 
-// Additional relations
+// Tambahan relations
   user                User?           @relation(fields: [userId], references: [id])
   review              DoctorReview?
   images              ScreeningImage[]
 
-// Additional index
+// Tambahan index
   @@index([userId], map: "idx_session_user_id")
 ```
 
@@ -569,7 +566,7 @@ model DoctorReview {
 
 ### 5.3 Respondent
 
-Santri/participant data managed by cadre.
+Data santri/peserta yang dikelola oleh kader.
 
 ```prisma
 model Respondent {
@@ -594,10 +591,9 @@ model Respondent {
 }
 ```
 
-
 ### 5.4 ScreeningImage
 
-Skin photo upload for CV model analysis.
+Upload foto kulit untuk analisis CV model.
 
 ```prisma
 model ScreeningImage {
@@ -628,9 +624,9 @@ model ScreeningImage {
 }
 ```
 
-### 5.5 CadreLocation (Planned — Phase 2)
+### 5.5 CadreLocation (Planned — Fase 2)
 
-Pondok location profile attached to cadre.
+Profil lokasi pondok yang melekat ke kader.
 
 ```prisma
 model CadreLocation {
@@ -646,7 +642,7 @@ model CadreLocation {
   villageId       String?   @map("village_id")
   villageName     String?   @map("village_name")
 
-  institutionName String?   @map("institution_name")  // Pondok/institution name
+  institutionName String?   @map("institution_name")  // Nama pondok/institusi
   residenceDuration String? @map("residence_duration") // "<6mo" | "6-12mo" | "1-2yr" | ">2yr"
   roomOccupants   Int?      @map("room_occupants")
 
@@ -666,13 +662,13 @@ model CadreLocation {
 
 ### 6.1 MVP Indexes
 
-| Table                  | Index                                       | Type          | Status      | Reason                                     |
+| Tabel                  | Index                                       | Tipe          | Status      | Alasan                                     |
 | ---------------------- | ------------------------------------------- | ------------- | ----------- | ------------------------------------------ |
-| `screening_session`    | `(status, risk_level)`                      | btree         | ✅ Migrated | Doctor queue filtering                     |
+| `screening_session`    | `(status, risk_level)`                      | btree         | ✅ Migrated | Filter antrian dokter                      |
 | `screening_session`    | `(share_token)`                             | btree, unique | ✅ Migrated | Public result lookup                       |
-| `screening_session`    | `(created_at DESC)`                         | btree         | ✅ Migrated | Recent sorting                             |
-| `screening_session`    | `(risk_level, created_at DESC)`             | btree         | ✅ Migrated | Doctor queue: "score ≥ MODERATE, recent"   |
-| `chat_message`         | `(session_id, created_at)`                  | btree         | ✅ Migrated | Sequential transcript                      |
+| `screening_session`    | `(created_at DESC)`                         | btree         | ✅ Migrated | Sorting terbaru                            |
+| `screening_session`    | `(risk_level, created_at DESC)`             | btree         | ✅ Migrated | Antrian dokter: "skor ≥ MODERATE, terbaru" |
+| `chat_message`         | `(session_id, created_at)`                  | btree         | ✅ Migrated | Transcript berurutan                       |
 | `turn_extraction`      | `(session_id, turn_number)`                 | btree, unique | ✅ Migrated | Prevent duplicate + lookup                 |
 | `turn_logs`            | `(session_id, turn_number)`                 | btree, unique | ✅ Migrated | Prevent duplicate + lookup                 |
 | `turn_logs`            | `(parse_status)`                            | btree         | ✅ Migrated | Filter by parse result                     |
@@ -680,36 +676,35 @@ model CadreLocation {
 | `evaluation_feedbacks` | `(session_id, turn_number, evaluator_type)` | btree, unique | ✅ Migrated | Prevent duplicate per evaluator            |
 | `evaluation_feedbacks` | `(prompt_version)`                          | btree         | ✅ Migrated | Group by prompt version for comparison     |
 | `evaluation_feedbacks` | `(evaluator_type, is_accurate)`             | btree         | ✅ Migrated | Accuracy stats per evaluator               |
-| `demographics`         | `(session_id)`                              | btree, unique | ✅ Migrated | 1:1 lookup (implicit from `@unique`)       |
+| `demographics`         | `(session_id)`                              | btree, unique | ✅ Migrated | 1:1 lookup (implicit dari `@unique`)       |
 
-### 6.2 Phase 2 Indexes
+### 6.2 Fase 2 Indexes
 
-| Table               | Index                     | Reason                                        |
+| Tabel               | Index                     | Alasan                                        |
 | ------------------- | ------------------------- | --------------------------------------------- |
-| `screening_session` | `(user_id)`               | FK lookup (nullable in MVP, populated Phase 2)|
+| `screening_session` | `(user_id)`               | FK lookup (nullable di MVP, populated Fase 2) |
 | `user`              | `(role, approval_status)` | Filter pending approvals                      |
-| `doctor_review`     | `(doctor_id)`             | List reviews per doctor                       |
-| `respondent`        | `(cadre_id)`              | List respondents per cadre                    |
+| `doctor_review`     | `(doctor_id)`             | List reviews per dokter                       |
+| `respondent`        | `(cadre_id)`              | List respondent per kader                     |
 | `screening_image`   | `(session_id)`            | Images per session                            |
 
-### 6.3 Indexes Intentionally NOT Added
+### 6.3 Index yang Sengaja TIDAK Ditambahkan
 
-| Field                      | Reason                                          |
+| Field                      | Alasan                                          |
 | -------------------------- | ----------------------------------------------- |
-| `demographics.age`         | Small volume, full scan fast enough             |
-| `demographics.gender`      | Low cardinality (2 values), index not effective |
-| `chat_message.content`     | No chat search feature                          |
-| `screening_session.locale` | Only 2 values, rarely filtered alone            |
-
+| `demographics.age`         | Volume kecil, full scan cukup cepat             |
+| `demographics.gender`      | Low cardinality (2 values), index tidak efektif |
+| `chat_message.content`     | Tidak ada fitur search chat                     |
+| `screening_session.locale` | Hanya 2 values, filter jarang dipakai sendiri   |
 
 ---
 
 ## 7. Row Level Security (RLS) Policies
 
-### 7.1 Principles
+### 7.1 Prinsip
 
-- MVP: all scoring/chat operations go through **API routes (service role)**. Client only has direct-access for minimal operations.
-- Phase 2: add per-role policies.
+- MVP: semua operasi scoring/chat lewat **API routes (service role)**. Client hanya direct-access untuk operasi minimal.
+- Fase 2: tambah per-role policies.
 
 ### 7.2 MVP Policies
 
@@ -786,9 +781,9 @@ CREATE POLICY "service_only_feedback"
   WITH CHECK (true);
 ```
 
-### 7.3 Phase 2 Policies (Planned)
+### 7.3 Fase 2 Policies (Planned)
 
-| Table               | Role               | Access                                                                   |
+| Tabel               | Role               | Access                                                                   |
 | ------------------- | ------------------ | ------------------------------------------------------------------------ |
 | `screening_session` | Authenticated user | SELECT own sessions (`user_id = auth.uid()`)                             |
 | `screening_session` | Doctor (approved)  | SELECT sessions with `risk_level >= MODERATE` AND `is_incognito = false` |
@@ -804,23 +799,23 @@ CREATE POLICY "service_only_feedback"
 
 ### 8.1 Retention Policy
 
-| Data                     | Retention                  | Reason                                   |
+| Data                     | Retention                  | Alasan                                   |
 | ------------------------ | -------------------------- | ---------------------------------------- |
-| Anonymous session        | Permanent                  | Research data — core of the study        |
-| Logged-in user session   | Permanent                  | User can request soft delete via account |
-| Incognito session        | Permanent (without `user_id`) | Research, but not in account history  |
-| Chat messages            | Follows parent session     | Cascade soft/hard delete                 |
-| TurnExtraction           | Follows parent session     | Research audit trail                     |
-| Shareable link           | No expiration              | As long as session exists, link active   |
-| Uploaded images (Phase 2)| Permanent                  | User can request deletion                |
+| Session anonim           | Permanen                   | Data riset — inti penelitian             |
+| Session user logged in   | Permanen                   | User bisa request soft delete via akun   |
+| Session incognito        | Permanen (tanpa `user_id`) | Riset, tapi tidak muncul di riwayat akun |
+| Chat messages            | Mengikuti parent session   | Cascade soft/hard delete                 |
+| TurnExtraction           | Mengikuti parent session   | Audit trail riset                        |
+| Shareable link           | Tidak expired              | Selama session ada, link aktif           |
+| Uploaded images (Fase 2) | Permanen                   | Bisa di-request hapus oleh user          |
 
 ### 8.2 Privacy by Design
 
-- **MVP fully anonymous** — no strong identity fields (email, phone). `name` optional and can be anything.
-- **No IP logging** at application level.
-- **Medical data** handled as research data, not formal medical records (not bound to RM/rekam medis).
-- **Consent** — for image upload (Phase 2), consent popup required before upload.
-- **Right to delete** — user can request data deletion via soft delete. Hard purge scheduled periodically by admin.
+- **MVP sepenuhnya anonim** — tidak ada field identitas kuat (email, phone). `name` opsional dan bisa diisi sembarang.
+- **Tidak ada IP logging** di level aplikasi.
+- **Data medis** ditangani sebagai data riset, bukan catatan medis formal (tidak terikat RM/rekam medis).
+- **Consent** — untuk image upload (Fase 2), consent popup wajib sebelum upload.
+- **Hak hapus** — user bisa request hapus data via soft delete. Hard purge dijadwalkan periodik oleh admin.
 
 ### 8.3 Soft Delete Implementation
 
@@ -861,18 +856,17 @@ async function purgeDeletedSessions(olderThanDays: number = 30) {
 }
 ```
 
-
 ---
 
 ## 9. JSON Field Schemas
 
-Documentation of JSONB field structures for consistency.
+Dokumentasi struktur JSONB fields untuk consistency.
 
 ### 9.1 `ScreeningSession.categoriesCovered`
 
 ```typescript
 type CategoriesCovered = string[];
-// Example: ["intensitas", "waktu", "lokasi_tubuh"]
+// Contoh: ["intensitas", "waktu", "lokasi_tubuh"]
 // Valid values: "intensitas" | "waktu" | "lokasi_tubuh" | "kontak" | "lesi" | "faktor_risiko"
 ```
 
@@ -880,9 +874,9 @@ type CategoriesCovered = string[];
 
 ```typescript
 interface CategoryScore {
-  raw: number; // before floor (can be negative if negative keyword)
-  capped: number; // after floor 0
-  status: 'assessed' | 'not_assessed'; // not_assessed = category not asked yet (force-close)
+  raw: number; // sebelum floor (bisa negatif jika negative keyword)
+  capped: number; // setelah floor 0
+  status: 'assessed' | 'not_assessed'; // not_assessed = kategori belum sempat ditanya (force-close)
 }
 
 interface Scores {
@@ -894,7 +888,7 @@ interface Scores {
   faktor_risiko: CategoryScore;
 }
 
-// Example:
+// Contoh:
 // {
 //   "intensitas": { "raw": 2, "capped": 2, "status": "assessed" },
 //   "waktu": { "raw": 2, "capped": 2, "status": "assessed" },
@@ -905,7 +899,7 @@ interface Scores {
 // }
 ```
 
-> **Note:** API response returns flat numbers (only `capped` values) for frontend simplicity. This rich format is only persisted in database for audit trail and research.
+> **Note:** API response mengembalikan flat numbers (hanya `capped` values) untuk simplicity frontend. Format rich ini hanya di-persist di database untuk audit trail dan riset.
 
 ### 9.3 `TurnExtraction.extraction`
 
@@ -924,7 +918,7 @@ interface ExtractedKeyword {
   confidence: 'high' | 'medium' | 'low';
 }
 
-// Example:
+// Contoh:
 // {
 //   "intensitas": [{ "keyword": "gatal hebat", "confidence": "high" }],
 //   "waktu": [{ "keyword": "malam hari", "confidence": "medium" }],
@@ -947,7 +941,7 @@ interface TurnScores {
   faktor_risiko: CategoryScore;
 }
 // Rich format per turn — includes raw, capped, status, matchedPatterns.
-// Backend sums all capped scores to get final total.
+// Backend menjumlahkan semua capped scores untuk mendapat total akhir.
 ```
 
 ### 9.5 `TurnLog.tokensUsed`
@@ -957,18 +951,18 @@ interface TokensUsed {
   input: number; // prompt tokens
   output: number; // completion tokens
 }
-// Null if provider doesn't return usage data.
+// Null jika provider tidak mengembalikan usage data.
 ```
 
 ### 9.6 `TurnLog.rawResponse`
 
 ```typescript
-// String — full JSON returned by LLM (may be invalid JSON on failure case)
-// Example (success):
+// String — full JSON yang dikembalikan LLM (bisa invalid JSON pada failure case)
+// Contoh (success):
 // '{"reply":"Terima kasih...","extraction":{"intensitas":[...],...},"categories_covered":[...],...}'
-// Example (partial):
+// Contoh (partial):
 // '{"reply":"Baik, saya mengerti..."}'
-// Example (failure):
+// Contoh (failure):
 // 'Sorry, I cannot help with that. <invalid>'
 ```
 
@@ -976,7 +970,7 @@ interface TokensUsed {
 
 ## 10. Migration Roadmap
 
-### 10.1 MVP (Phase 1)
+### 10.1 MVP (Fase 1)
 
 ```bash
 # Initial migration — create all MVP tables
@@ -999,9 +993,9 @@ npx prisma migrate dev --name add_observability
 # - ParseStatus (SUCCESS, PARTIAL, FAILURE)
 ```
 
-**Seeding:** Not required. Data created organically from screening sessions.
+**Seeding:** Tidak diperlukan. Data tercipta organik dari screening sessions.
 
-### 10.2 Phase 2 — Auth & Roles
+### 10.2 Fase 2 — Auth & Roles
 
 ```bash
 npx prisma migrate dev --name add_auth_roles
@@ -1014,42 +1008,41 @@ npx prisma migrate dev --name add_auth_roles
 # - screening_image
 
 # Alterations:
-# - screening_session: user_id FK → user.id (nullable, existing rows stay null)
+# - screening_session: user_id FK → user.id (nullable, existing rows tetap null)
 # - screening_session: add respondent_id FK (nullable)
 ```
 
-**Data migration:** All MVP sessions remain anonymous (`user_id = null`). No data migration needed.
+**Migrasi data:** Semua session MVP tetap anonim (`user_id = null`). Tidak ada data migration yang perlu dijalankan.
 
-### 10.3 Phase 3 — Enhancement
+### 10.3 Fase 3 — Enhancement
 
 ```bash
 npx prisma migrate dev --name add_analytics
 
 # Possible additions:
-# - Materialized views for statistics
-# - Normalized keyword table (if JSONB query becomes bottleneck)
+# - Materialized views untuk statistik
+# - Normalized keyword table (jika JSONB query jadi bottleneck)
 # - Notification queue table
 ```
-
 
 ---
 
 ## 11. Supabase Storage (Non-DB)
 
-For files stored in Supabase Storage (not PostgreSQL):
+Untuk file yang disimpan di Supabase Storage (bukan PostgreSQL):
 
-| Bucket             | Access        | Content         | Phase   |
-| ------------------ | ------------- | --------------- | ------- |
-| `screening-images` | Private (RLS) | User skin photos| Phase 2 |
+| Bucket             | Akses         | Konten          | Fase   |
+| ------------------ | ------------- | --------------- | ------ |
+| `screening-images` | Private (RLS) | Foto kulit user | Fase 2 |
 
 **Path format:** `{sessionId}/{timestamp}-{index}.{ext}`  
-**Constraint:** Max 5 files/session, max 10MB/file, formats JPEG/PNG/WebP.
+**Constraint:** Maks 5 file/session, maks 10MB/file, format JPEG/PNG/WebP.
 
 ---
 
 ## 12. Useful JSONB Queries (Reference)
 
-Although primary research is via export, here are example queries that can be run directly:
+Meskipun riset utama via export, berikut contoh query yang bisa dijalankan langsung:
 
 ```sql
 -- Total sessions per risk level
@@ -1058,7 +1051,7 @@ FROM screening_session
 WHERE deleted_at IS NULL AND status = 'COMPLETED'
 GROUP BY risk_level;
 
--- Average score per category
+-- Rata-rata skor per kategori
 SELECT
   AVG((scores->>'intensitas')::int) as avg_intensitas,
   AVG((scores->>'waktu')::int) as avg_waktu,
@@ -1069,7 +1062,7 @@ SELECT
 FROM screening_session
 WHERE deleted_at IS NULL AND status = 'COMPLETED';
 
--- Sessions per month
+-- Sessions per bulan
 SELECT
   DATE_TRUNC('month', created_at) as month,
   COUNT(*) as total,
@@ -1079,7 +1072,7 @@ WHERE deleted_at IS NULL AND status = 'COMPLETED'
 GROUP BY month
 ORDER BY month DESC;
 
--- Export full session data (for research)
+-- Export full session data (untuk riset)
 SELECT
   ss.id, ss.total_score, ss.risk_level, ss.perception, ss.locale,
   ss.scores, ss.created_at, ss.completed_at,
@@ -1100,7 +1093,7 @@ SELECT
 FROM turn_log
 GROUP BY model;
 
--- Accuracy rate per prompt version (from feedback)
+-- Accuracy rate per prompt version (dari feedback)
 SELECT
   ef.prompt_version,
   COUNT(*) as total_evaluated,
@@ -1123,7 +1116,7 @@ GROUP BY model;
 
 ## 13. Prisma Full Schema (MVP)
 
-Complete file for `prisma/schema.prisma` (MVP only):
+File lengkap untuk `prisma/schema.prisma` (MVP only):
 
 ```prisma
 generator client {

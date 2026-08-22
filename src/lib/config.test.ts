@@ -53,3 +53,23 @@ describe('getRiskLevel', () => {
     );
   });
 });
+
+/**
+ * The photo gate is mandatory and has no escape hatch other than uploading or
+ * exhausting the client's retries, so the transport budget has to outlast that
+ * retry budget. If it does not, a santri whose uploads keep dropping is refused
+ * by the rate limiter before reaching the skip path, and the gate strands them.
+ */
+describe('CONFIG.rateLimit', () => {
+  it('gives image uploads more attempts than the client will make on its own', () => {
+    expect(CONFIG.rateLimit.image.maxRequests).toBeGreaterThan(
+      CONFIG.visualDetection.MAX_UPLOAD_FAILURES,
+    );
+  });
+
+  it('allows a chat turn budget that a full screening cannot exhaust in one window', () => {
+    // Chips answers post through the same endpoint one tap at a time, so the
+    // per-minute allowance has to sit above a realistic burst rather than near it.
+    expect(CONFIG.rateLimit.chat.maxRequests).toBeGreaterThanOrEqual(30);
+  });
+});

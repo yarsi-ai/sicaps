@@ -211,3 +211,100 @@ export function AutoExpireIcon({ size = 12, color = 'var(--color-text-faint)' }:
     </svg>
   );
 }
+
+export function CameraIcon({ size = 22, color = 'currentColor' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path
+        d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2v11z"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="13" r="4" stroke={color} strokeWidth="2" />
+    </svg>
+  );
+}
+
+export function GalleryIcon({ size = 22, color = 'currentColor' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <rect
+        x="3"
+        y="3"
+        width="18"
+        height="18"
+        rx="2"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="8.5" cy="8.5" r="1.5" fill={color} />
+      <path
+        d="m21 15-5-5L5 21"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function SpinnerIcon({ size = 20, color = 'var(--color-brand-primary)' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="animate-spin">
+      <circle cx="12" cy="12" r="9" stroke={color} strokeWidth="2.4" strokeOpacity="0.25" />
+      <path
+        d="M21 12a9 9 0 0 0-9-9"
+        stroke={color}
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function AlertIcon({ size = 20, color = '#FFF9EC' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="9" stroke={color} strokeWidth="2" />
+      <path d="M12 7.5v6" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
+      <circle cx="12" cy="16.75" r="1.15" fill={color} />
+    </svg>
+  );
+}
+
+export function InfoIcon({ size = 16, color = 'var(--color-brand-primary)' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="9" stroke={color} strokeWidth="2" />
+      <path d="M12 11v5.5" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
+      <circle cx="12" cy="7.75" r="1.15" fill={color} />
+    </svg>
+  );
+}
+
+export function RetryIcon({ size = 14, color = 'var(--color-text-strong)' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path
+        d="M4 12a8 8 0 1 0 2.6-5.9"
+        stroke={color}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M4 4.5V10h5.5"
+        stroke={color}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

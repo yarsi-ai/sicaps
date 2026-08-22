@@ -13,11 +13,12 @@
  * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 6.1, 6.2, 7.1, 7.2, 7.3, 7.4
  */
 
-import { Perception, Prisma } from '@prisma/client';
+import { Perception, PerceptionStep, Prisma } from '@prisma/client';
 import { prisma } from '@/db/prisma';
 import { getPrimaryClient, getLLMConfig } from '@/lib/llm';
 import { sanitizeUserInput } from '@/lib/sanitize';
 import { SessionBusyError } from '@/lib/errors';
+import { typingDelayMs } from '@/lib/typing-pace';
 
 import { checkCrisis } from '../domain/chat/crisis';
 import { mergeCoverage } from '../domain/chat/coverage';
@@ -125,6 +126,19 @@ interface SessionLock {
   conflictDimension: unknown;
   conflictClarified: unknown;
   stagnationCount: unknown;
+  perceptionStartTurn: number | null;
+  /**
+   * Which perception question is outstanding, or null when the phase has been
+   * entered but nothing has been asked yet. Answers are only attributed to a
+   * question this says was actually asked.
+   */
+  perceptionStep: PerceptionStep | null;
+  /**
+   * The session's photo row, if one has been submitted. Loaded alongside the
+   * session so the phase snapshot can tell whether the image gate is satisfied
+   * without a second round trip.
+   */
+  image: { visualResult: string | null } | null;
 }
 
 /** Mutable pipeline state passed through steps. */
@@ -394,16 +408,34 @@ export async function processChatTurn(input: ChatTurnInput): Promise<ReadableStr
         // 2-step flow: turn 1 = severity → ask barrier, turn 2 = barrier → set perception
         let currentPerception = session.perception as Perception | null;
         let perceptionSeverityDetected = false;
+
+        // Which question this turn's message is answering. Null means the phase
+        // has been entered but nothing has been asked yet, so there is nothing
+        // for the message to be an answer to.
+        //
+        // This is the guard that matters. Without it a reply to the bot's own
+        // "Siap lanjut?" after a failed photo analysis was fed to the classifier,
+        // read as "no barrier", and resolved perception to ADEQUATE before the
+        // severity question had ever been asked.
+        const askedStep = session.perceptionStep ?? null;
+        let nextPerceptionStep: PerceptionStep | null = askedStep;
+
         if (
           session.phase === 'ASKING_PERCEPTION' &&
+          askedStep !== null &&
           !currentPerception &&
           !chipsSubState.startsWith('CHIPS_ACTIVE')
         ) {
-          const classification = await classifyPerceptionAnswer(sanitizedMessage, locale);
+          const classification = await classifyPerceptionAnswer(
+            sanitizedMessage,
+            askedStep,
+            locale,
+          );
 
           await logAudit(sessionId, 'perception_classification', {
             turn: turnCount,
             userMessage: sanitizedMessage,
+            askedStep,
             classification,
             method:
               classification.severity || classification.barrier || classification.noBarrier
@@ -465,6 +497,7 @@ export async function processChatTurn(input: ChatTurnInput): Promise<ReadableStr
 
         // Step 11: Phase transition
         // Don't transition when chips just triggered — wait for user to finish chips flow first
+        const imageResolved = session.image?.visualResult != null;
         const snapshot = {
           phase: session.phase as SessionPhase,
           dimensiBelum: pipe.dimensiBelum,
@@ -475,10 +508,32 @@ export async function processChatTurn(input: ChatTurnInput): Promise<ReadableStr
           partial: session.partial,
           chipsAnswered: pipe.chipsAnswered,
           stagnationCount: pipe.stagnationCount,
+          imageResolved,
         };
-        const newPhase = chipsTriggeredThisTurn
+        let newPhase = chipsTriggeredThisTurn
           ? (session.phase as SessionPhase)
           : nextPhase(snapshot);
+
+        // Guard: never regress past AWAITING_IMAGE. If the DB phase is already
+        // past the image gate (ASKING_PERCEPTION, SCREENING_COMPLETE, CLOSED),
+        // trust that advancePhaseAfterImage already resolved it — the Prisma
+        // relation query can return null even when the image row exists, and
+        // re-computing the phase from a stale snapshot must not undo progress.
+        const PHASES_PAST_IMAGE_GATE: SessionPhase[] = [
+          'ASKING_PERCEPTION',
+          'SCREENING_COMPLETE',
+          'CLOSED',
+        ];
+        if (
+          newPhase === 'AWAITING_IMAGE' &&
+          PHASES_PAST_IMAGE_GATE.includes(session.phase as SessionPhase)
+        ) {
+          // Ask again with the gate treated as satisfied rather than pinning to
+          // the stored phase. Pinning froze the session on whatever phase the
+          // stale read happened to catch, so a session whose perception was
+          // already answered could sit in ASKING_PERCEPTION indefinitely.
+          newPhase = nextPhase({ ...snapshot, imageResolved: true });
+        }
 
         if (newPhase !== session.phase) {
           await prisma.screeningSession.update({
@@ -538,7 +593,39 @@ export async function processChatTurn(input: ChatTurnInput): Promise<ReadableStr
           // Perception compose: 2-step approach
           // Step 1: Ask severity ("ringan/ganggu/khawatir?")
           // Step 2: Ask barrier based on severity answer
-          if (session.phase === 'ASKING_PERCEPTION' && !currentPerception) {
+          //
+          // Which of the two to send is decided by `askedStep`, the record of what
+          // has already been asked. It used to be inferred from `session.phase`
+          // plus `currentPerception`, which conflated "just arrived in this phase"
+          // with "already finished it" — both fell to the same branch, so a
+          // session that had answered the perception question got the severity
+          // question re-composed on every turn.
+          if (askedStep === null) {
+            // Nothing asked yet — open with the severity question.
+            const perceptionPrompt = buildPerceptionSeverityPrompt(
+              pipe.dimensiTerisi,
+              pipe.scoringState,
+              locale,
+            );
+            const perceptionResult = await attemptComposeWithPrompt(
+              controller,
+              encoder,
+              perceptionPrompt,
+              locale,
+            );
+            botReply = perceptionResult ?? getBotText(locale).perceptionSeverity;
+            if (!perceptionResult) {
+              emitSSE(controller, encoder, { type: 'token', data: botReply });
+            }
+            nextPerceptionStep = 'ASK_SEVERITY';
+          } else {
+            // A question is outstanding and this turn is the answer to it.
+            //
+            // `currentPerception` is necessarily still null here: `nextPhase` only
+            // returns ASKING_PERCEPTION while perception is null, and the snapshot
+            // it reads carries this turn's value. A perception resolved earlier in
+            // the turn leaves this phase on that same turn rather than lingering
+            // here with nothing left to ask.
             if (perceptionSeverityDetected) {
               // Severity answered but no barrier detected — ask barrier as follow-up
               const barrierPrompt = buildBarrierFollowUpPrompt(sanitizedMessage, locale);
@@ -552,15 +639,11 @@ export async function processChatTurn(input: ChatTurnInput): Promise<ReadableStr
               if (!barrierResult) {
                 emitSSE(controller, encoder, { type: 'token', data: botReply });
               }
+              nextPerceptionStep = 'ASK_BARRIER';
             } else {
               // No severity or barrier detected from regex — try LLM one more time
               // with focused prompt before giving up
-              const lastBotContent =
-                recentMessages.filter((m) => m.role === 'assistant').pop()?.content ?? '';
-              const wasBarrierQuestion =
-                /ragu|males|periksa|hambatan|malu.*takut|alasan|hesitant|holding you back|barrier|getting checked/i.test(
-                  lastBotContent,
-                );
+              const wasBarrierQuestion = askedStep === 'ASK_BARRIER';
 
               const retryPrompt = buildPerceptionRetryPrompt(
                 sanitizedMessage,
@@ -585,12 +668,17 @@ export async function processChatTurn(input: ChatTurnInput): Promise<ReadableStr
                 const retryContent = retryResponse.choices[0]?.message?.content;
                 if (retryContent) {
                   const retryParsed = JSON.parse(retryContent);
-                  if (retryParsed.noBarrier === true || retryParsed.barrier === null) {
-                    currentPerception = 'ADEQUATE';
-                    resolved = true;
-                  } else if (retryParsed.barrier) {
-                    currentPerception = 'BARRIER';
-                    resolved = true;
+                  // Each reading is only accepted for the question that was
+                  // actually asked. A barrier verdict on the severity turn is an
+                  // answer to a question the santri never saw.
+                  if (wasBarrierQuestion) {
+                    if (retryParsed.noBarrier === true || retryParsed.barrier === null) {
+                      currentPerception = 'ADEQUATE';
+                      resolved = true;
+                    } else if (retryParsed.barrier) {
+                      currentPerception = 'BARRIER';
+                      resolved = true;
+                    }
                   } else if (retryParsed.severity) {
                     // Severity detected on retry — ask barrier
                     perceptionSeverityDetected = true;
@@ -621,9 +709,12 @@ export async function processChatTurn(input: ChatTurnInput): Promise<ReadableStr
                 if (!barrierResult) {
                   emitSSE(controller, encoder, { type: 'token', data: botReply });
                 }
+                nextPerceptionStep = 'ASK_BARRIER';
               } else {
                 // LLM also couldn't classify — default based on context
-                const turnsInPerception = turnCount - (session.turnCount - 1);
+                // Use perceptionStartTurn to accurately count turns in perception phase
+                const perceptionStart = session.perceptionStartTurn ?? turnCount;
+                const turnsInPerception = turnCount - perceptionStart + 1;
                 if (turnsInPerception >= 3 || wasBarrierQuestion) {
                   currentPerception = 'ADEQUATE';
                   await prisma.screeningSession.update({
@@ -638,24 +729,16 @@ export async function processChatTurn(input: ChatTurnInput): Promise<ReadableStr
                 }
               }
             }
-          } else {
-            // First time entering ASKING_PERCEPTION — ask severity only
-            const perceptionPrompt = buildPerceptionSeverityPrompt(
-              pipe.dimensiTerisi,
-              pipe.scoringState,
-              locale,
-            );
-            const perceptionResult = await attemptComposeWithPrompt(
-              controller,
-              encoder,
-              perceptionPrompt,
-              locale,
-            );
-            botReply = perceptionResult ?? getBotText(locale).perceptionSeverity;
-            if (!perceptionResult) {
-              emitSSE(controller, encoder, { type: 'token', data: botReply });
-            }
           }
+        } else if (newPhase === 'AWAITING_IMAGE') {
+          // Static photo request — no LLM. Left to the generic compose branch the
+          // model would invent another clinical question, because nothing in the
+          // prompt tells it the turn is waiting on an upload rather than an answer.
+          botReply = getBotText(locale).imageGateOpening;
+          // Skipping the LLM also skips the pause every other phase gets for free,
+          // and the request would otherwise land the instant the santri hits send.
+          await typingDelay(botReply);
+          emitSSE(controller, encoder, { type: 'token', data: botReply });
         } else if (newPhase === 'SCREENING_COMPLETE') {
           // Screening done — finalize scoring, send short closing message
           let finalRiskLevel: 'HIGH' | 'MODERATE' | 'LOW' = 'LOW';
@@ -749,6 +832,32 @@ export async function processChatTurn(input: ChatTurnInput): Promise<ReadableStr
           }
         }
 
+        // Step 12b: Record which perception question this turn just put on the
+        // table, so the next turn can attribute the answer to it.
+        //
+        // `perceptionStartTurn` is stamped here rather than on the phase
+        // transition because entering the phase and asking the question are not
+        // the same event: an upload can move the session into ASKING_PERCEPTION
+        // without asking anything. Counting from the transition made the
+        // "give up and default" escape hatch measure a window that had not opened
+        // yet.
+        if (nextPerceptionStep !== askedStep) {
+          await prisma.screeningSession.update({
+            where: { id: sessionId },
+            data: {
+              perceptionStep: nextPerceptionStep,
+              ...(askedStep === null && nextPerceptionStep === 'ASK_SEVERITY'
+                ? { perceptionStartTurn: turnCount }
+                : {}),
+            },
+          });
+          await logAudit(sessionId, 'perception_step_asked', {
+            turn: turnCount,
+            from: askedStep,
+            to: nextPerceptionStep,
+          });
+        }
+
         // Step 13: Save bot message (skip if empty — chips-only turn)
         if (botReply) {
           await prisma.chatMessage.create({
@@ -774,6 +883,15 @@ export async function processChatTurn(input: ChatTurnInput): Promise<ReadableStr
         emitSSE(controller, encoder, { type: 'done', data: { turnCount } });
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unexpected error';
+        const errorStack = error instanceof Error ? error.stack : undefined;
+
+        // Log error for server-side debugging
+        console.error('[chat.service] processChatTurn failed', {
+          sessionId,
+          error: errorMessage,
+          stack: errorStack,
+        });
+
         emitSSE(controller, encoder, {
           type: 'error',
           data: { code: 'INTERNAL_ERROR', message: errorMessage },
@@ -1214,6 +1332,12 @@ async function acquireLock(sessionId: string): Promise<SessionLock> {
       conflictDimension: true,
       conflictClarified: true,
       stagnationCount: true,
+      perceptionStartTurn: true,
+      perceptionStep: true,
+      // Drives the AWAITING_IMAGE gate in nextPhase(). `visualResult` is set both
+      // on a successful prediction and on the permanent-failure fallback, so its
+      // presence is exactly "the gate is satisfied".
+      image: { select: { visualResult: true } },
     },
   });
 
@@ -1705,22 +1829,14 @@ async function saveTurnLog(input: TurnLogInput): Promise<void> {
 // ---------------------------------------------------------------------------
 
 /**
- * Simulate typing delay for instant responses (chips transitions).
- * Delay scales with message length to feel natural:
- * - Base: 1500ms minimum
- * - Per character: ~20ms (roughly simulating 50 WPM typing speed)
- * - Cap: 4000ms maximum
+ * Hold a turn back so a reply built from fixed copy does not arrive instantly.
+ *
+ * Used by the branches that skip the LLM — chips intros and the photo request.
+ * The arithmetic lives in `lib/typing-pace.ts` because the client needs the same
+ * rhythm for the rows an image submission returns.
  */
 function typingDelay(text?: string): Promise<void> {
-  const BASE_MS = 1500;
-  const PER_CHAR_MS = 20;
-  const MAX_MS = 4000;
-
-  const charCount = text?.length ?? 0;
-  const computed = BASE_MS + charCount * PER_CHAR_MS;
-  const ms = Math.min(computed, MAX_MS);
-
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, typingDelayMs(text)));
 }
 
 function emitSSE(
@@ -1876,14 +1992,20 @@ function _isClarificationRequest(message: string): boolean {
     normalized,
   );
 }
-/** System prompt for the ambiguous-answer classifier, per locale. */
-const PERCEPTION_CLASSIFIER_PROMPT: Record<Locale, string> = {
-  id: `Klasifikasikan jawaban user tentang persepsi keluhannya. Output JSON saja.
-
-User menjawab salah satu dari:
-- Severity: seberapa serius menurut mereka (ringan/mengganggu/khawatir)
-- Barrier: hambatan periksa ke dokter (malu/takut/biaya/ribet)
-- NoBarrier: menyatakan tidak ada hambatan
+/**
+ * System prompt for the ambiguous-answer classifier, per locale.
+ *
+ * Split into a shared base plus a per-step suffix so the model is told which of
+ * the two questions the answer belongs to. Without that, short answers are
+ * ambiguous by construction: "biasa aja" is a severity on one turn and a denial
+ * on the other.
+ */
+const PERCEPTION_CLASSIFIER_PROMPT: Record<
+  Locale,
+  { base: string; severityAsked: string; barrierAsked: string }
+> = {
+  id: {
+    base: `Klasifikasikan jawaban user tentang persepsi keluhannya. Output JSON saja.
 
 Rules:
 - Jika user menyebut tingkat keparahan → set severity (low/moderate/high)
@@ -1893,12 +2015,13 @@ Rules:
 - Angka: 1=low, 2=moderate, 3=high
 
 Output HARUS: {"severity": "low"|"moderate"|"high"|null, "barrier": "malu"|"takut"|"biaya"|"ribet"|null, "noBarrier": true|false}`,
-  en: `Classify the user's answer about how they perceive their complaint. Output JSON only.
-
-The user is answering one of:
-- Severity: how serious they think it is (mild/bothersome/worrying)
-- Barrier: something blocking them from getting checked (embarrassment/fear/cost/hassle)
-- NoBarrier: stating there is no barrier
+    severityAsked: `PERTANYAAN YANG BARU DITANYAKAN: "menurut kamu keluhan ini (1) biasa aja, (2) cukup mengganggu, atau (3) bikin khawatir?"
+Jadi jawaban user kemungkinan besar adalah severity. JANGAN set noBarrier di sini — hambatan belum ditanyakan. Kalau user cuma bilang siap/lanjut/oke tanpa menyebut tingkat keparahan, kembalikan semua null.`,
+    barrierAsked: `PERTANYAAN YANG BARU DITANYAKAN: "ada ga hal yang bikin kamu ragu atau males buat periksa ke kader/dokter?"
+Jadi jawaban user adalah tentang hambatan, bukan tingkat keparahan. JANGAN set severity di sini.`,
+  },
+  en: {
+    base: `Classify the user's answer about how they perceive their complaint. Output JSON only.
 
 Rules:
 - If the user names a severity level → set severity (low/moderate/high)
@@ -1909,10 +2032,26 @@ Rules:
 - The barrier values stay in Indonesian: they are enum codes, not display text.
 
 Output MUST be: {"severity": "low"|"moderate"|"high"|null, "barrier": "malu"|"takut"|"biaya"|"ribet"|null, "noBarrier": true|false}`,
+    severityAsked: `THE QUESTION JUST ASKED WAS: "how would you describe this — (1) no big deal, (2) fairly bothersome, or (3) really worrying?"
+So the answer is most likely a severity. Do NOT set noBarrier here — barriers have not been asked about yet. If the user only says ready/ok/go without naming a severity, return all nulls.`,
+    barrierAsked: `THE QUESTION JUST ASKED WAS: "is anything holding you back from getting checked by a health cadre or doctor?"
+So the answer is about barriers, not severity. Do NOT set severity here.`,
+  },
 };
 
+/**
+ * Classify a perception answer against the question that was actually asked.
+ *
+ * `askedStep` is not a hint, it is a constraint. A denial only means "no
+ * barrier" if the barrier question was the one on the table; read out of
+ * context, ordinary continuation words ("siap", "langsung aja", "oke") look
+ * exactly like one. Volunteered barriers are the exception and count at either
+ * step, because naming a barrier unprompted is real signal rather than an
+ * ambiguous shape.
+ */
 async function classifyPerceptionAnswer(
   message: string,
+  askedStep: PerceptionStep,
   locale: Locale,
 ): Promise<{
   severity: 'low' | 'moderate' | 'high' | null;
@@ -1920,6 +2059,7 @@ async function classifyPerceptionAnswer(
   noBarrier: boolean;
 }> {
   const normalized = message.toLowerCase().trim();
+  const barrierWasAsked = askedStep === 'ASK_BARRIER';
 
   // --- Fast path: regex for common/clear answers ---
 
@@ -1935,41 +2075,64 @@ async function classifyPerceptionAnswer(
     return { severity: null, barrier: 'barrier', noBarrier: false };
   }
 
-  // No barrier (explicit denial) — broad matching
-  if (isNoBarrierAnswer(normalized)) {
+  // No barrier (explicit denial) — broad matching, and only meaningful as an
+  // answer to the barrier question.
+  if (barrierWasAsked && isNoBarrierAnswer(normalized)) {
     return { severity: null, barrier: null, noBarrier: true };
   }
 
-  // Severity — number shorthand
-  if (/^1$|^satu$|^one$/.test(normalized))
-    return { severity: 'low', barrier: null, noBarrier: false };
-  if (/^2$|^dua$|^two$/.test(normalized))
-    return { severity: 'moderate', barrier: null, noBarrier: false };
-  if (/^3$|^tiga$|^three$/.test(normalized))
-    return { severity: 'high', barrier: null, noBarrier: false };
-
-  // Severity — keyword match
-  if (
-    /biasa|ringan|ga.*parah|santai|ga.*masalah|mild|no big deal|not.*bad|fine|minor|slight/.test(
-      normalized,
+  // Severity, and only as an answer to the severity question. Read against the
+  // barrier question these patterns misfire in the mirror-image way a denial
+  // does: "biasa aja" means "nothing in particular" there, not "mild".
+  if (!barrierWasAsked) {
+    // Number shorthand (tolerant: handles "1", "1.", "(1)", "pilih 1", etc.)
+    if (
+      /^\(?1\)?\.?$|^satu$|^one$|^\(?1\)?\.?\s|pilih\s*1|nomor\s*1|opsi\s*1|option\s*1/.test(
+        normalized,
+      )
     )
-  ) {
-    return { severity: 'low', barrier: null, noBarrier: false };
-  }
-  if (/mengganggu|ganggu|lumayan|cukup|bother|annoying|disrupt|fairly|somewhat/.test(normalized)) {
-    return { severity: 'moderate', barrier: null, noBarrier: false };
-  }
-  if (
-    /khawatir|parah|serius|banget|panik|worr|severe|serious|really bad|panic|scary/.test(normalized)
-  ) {
-    return { severity: 'high', barrier: null, noBarrier: false };
+      return { severity: 'low', barrier: null, noBarrier: false };
+    if (
+      /^\(?2\)?\.?$|^dua$|^two$|^\(?2\)?\.?\s|pilih\s*2|nomor\s*2|opsi\s*2|option\s*2/.test(
+        normalized,
+      )
+    )
+      return { severity: 'moderate', barrier: null, noBarrier: false };
+    if (
+      /^\(?3\)?\.?$|^tiga$|^three$|^\(?3\)?\.?\s|pilih\s*3|nomor\s*3|opsi\s*3|option\s*3/.test(
+        normalized,
+      )
+    )
+      return { severity: 'high', barrier: null, noBarrier: false };
+
+    // Keyword match
+    if (
+      /biasa|ringan|ga.*parah|santai|ga.*masalah|mild|no big deal|not.*bad|fine|minor|slight/.test(
+        normalized,
+      )
+    ) {
+      return { severity: 'low', barrier: null, noBarrier: false };
+    }
+    if (
+      /mengganggu|ganggu|lumayan|cukup|bother|annoying|disrupt|fairly|somewhat/.test(normalized)
+    ) {
+      return { severity: 'moderate', barrier: null, noBarrier: false };
+    }
+    if (
+      /khawatir|parah|serius|banget|panik|worr|severe|serious|really bad|panic|scary/.test(
+        normalized,
+      )
+    ) {
+      return { severity: 'high', barrier: null, noBarrier: false };
+    }
   }
 
   // --- Slow path: LLM for ambiguous/typo cases ---
 
   const client = getPrimaryClient();
   const config = getLLMConfig();
-  const systemPrompt = PERCEPTION_CLASSIFIER_PROMPT[locale];
+  const copy = PERCEPTION_CLASSIFIER_PROMPT[locale];
+  const systemPrompt = `${copy.base}\n\n${barrierWasAsked ? copy.barrierAsked : copy.severityAsked}`;
 
   try {
     const response = await client.chat.completions.create(
@@ -1990,15 +2153,23 @@ async function classifyPerceptionAnswer(
     if (!content) return { severity: null, barrier: null, noBarrier: false };
 
     const parsed = JSON.parse(content);
+
+    // The prompt states which question was asked, but the answer is still
+    // discarded per step rather than trusted: a model that volunteers a
+    // `noBarrier` on the severity turn would resolve perception against a
+    // question the santri never saw, which is the failure this whole step
+    // parameter exists to prevent.
     return {
-      severity: parsed.severity ?? null,
+      severity: barrierWasAsked ? null : (parsed.severity ?? null),
       barrier: parsed.barrier ?? null,
-      noBarrier: parsed.noBarrier === true,
+      noBarrier: barrierWasAsked && parsed.noBarrier === true,
     };
   } catch {
-    // LLM failed — if message doesn't contain any barrier keywords,
-    // assume no barrier (user who doesn't mention barriers = no barrier)
+    // LLM failed. On the barrier turn, silence about barriers is itself an
+    // answer: someone who names no barrier has none. On the severity turn there
+    // is nothing to infer, so the compose layer re-asks instead.
     if (
+      barrierWasAsked &&
       !/malu|takut|mahal|biaya|ragu|males|ribet|segan|embarrass|ashamed|scared|afraid|cost|expensive|hassle|hesitant/.test(
         normalized,
       )
@@ -2012,6 +2183,11 @@ async function classifyPerceptionAnswer(
 /**
  * Check if message is a "no barrier" answer.
  * Broad matching — handles many Indonesian and English denial variations.
+ *
+ * Only valid to call once the barrier question has been asked. The readiness
+ * forms below ("langsung aja", "siap") do mean "nothing is stopping me" in reply
+ * to that question, and mean nothing of the sort anywhere else — callers must
+ * establish the context, the patterns cannot.
  */
 function isNoBarrierAnswer(normalized: string): boolean {
   // Direct denial patterns

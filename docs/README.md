@@ -1,58 +1,58 @@
 # SICAPS — Documentation Index
 
-> **SICAPS** (Smart AI System for Scabies Screening)  
-> Web-based scabies screening chatbot for santri (students residing at Islamic boarding schools/pesantren)
+> **SICAPS** (Sistem Cerdas AI untuk Pemeriksaan Skabies)  
+> Chatbot skrining skabies berbasis web untuk santri pondok pesantren
 
 ---
 
 ## Master Documents (All Phases)
 
-| Document                                     | Description                                              |
-| -------------------------------------------- | -------------------------------------------------------- |
-| [PRD.md](./PRD.md)                           | Product Requirements — user stories, scoring rules, roadmap |
-| [TECHNICAL_SPEC.md](./TECHNICAL_SPEC.md)     | Architecture, tech stack, project structure, deployment  |
-| [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md)   | Single source of truth for database design               |
-| [CODING_STANDARDS.md](./CODING_STANDARDS.md) | Naming, folder structure, patterns, testing, git conventions |
+| Document                                     | Description                                                             |
+| -------------------------------------------- | ----------------------------------------------------------------------- |
+| [PRD.md](./PRD.md)                           | Product Requirements — user stories, scoring rules, fase roadmap        |
+| [TECHNICAL_SPEC.md](./TECHNICAL_SPEC.md)     | Architecture, tech stack, project structure, deployment                 |
+| [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md)   | Single source of truth untuk database design                            |
+| [CODING_STANDARDS.md](./CODING_STANDARDS.md) | Naming, folder structure, patterns, testing, git conventions            |
 | [TESTING_STRATEGY.md](./TESTING_STRATEGY.md) | LLM output testing, scoring accuracy, chat flow regression, CI pipeline |
-| [DEPLOYMENT.md](./DEPLOYMENT.md)             | Environments, Vercel config, Supabase setup, CI/CD, monitoring |
+| [DEPLOYMENT.md](./DEPLOYMENT.md)             | Environments, Vercel config, Supabase setup, CI/CD, monitoring          |
 
 ---
 
 ## Phase 1 — MVP
 
-Anonymous screening, AI chat + questionnaire fallback, bilingual (ID/EN).
+Skrining anonim, chat AI + questionnaire fallback, bilingual (ID/EN).
 
-| Document                                                   | Description                                                  |
-| ---------------------------------------------------------- | ------------------------------------------------------------ |
-| [AI_BOT_SPEC.md](./phase-1/AI_BOT_SPEC.md)                 | Bot persona, conversation flow, extraction, scoring pipeline |
-| [API_SPEC.md](./phase-1/API_SPEC.md)                       | REST endpoints, request/response schemas, error codes        |
-| [DESIGN_SPEC.md](./phase-1/DESIGN_SPEC.md)                 | UI/UX, visual styles, responsive layout, accessibility       |
-| [BILINGUAL_SPEC.md](./phase-1/BILINGUAL_SPEC.md)           | English keyword tables, i18n architecture, translation keys  |
+| Document                                                   | Description                                                      |
+| ---------------------------------------------------------- | ---------------------------------------------------------------- |
+| [AI_BOT_SPEC.md](./phase-1/AI_BOT_SPEC.md)                 | Bot persona, conversation flow, extraction, scoring pipeline     |
+| [API_SPEC.md](./phase-1/API_SPEC.md)                       | REST endpoints, request/response schemas, error codes            |
+| [DESIGN_SPEC.md](./phase-1/DESIGN_SPEC.md)                 | UI/UX, visual styles, responsive layout, accessibility           |
+| [BILINGUAL_SPEC.md](./phase-1/BILINGUAL_SPEC.md)           | English keyword tables, i18n architecture, translation keys      |
 | [LLM_INTEGRATION.md](./phase-1/LLM_INTEGRATION.md)         | Streaming, prompt management, fallback strategy, cost estimation |
-| [SCORING_ENGINE_SPEC.md](./phase-1/SCORING_ENGINE_SPEC.md) | Pattern matching algorithm, keyword pool, questionnaire scoring |
+| [SCORING_ENGINE_SPEC.md](./phase-1/SCORING_ENGINE_SPEC.md) | Pattern matching algorithm, keyword pool, questionnaire scoring  |
 
 ---
 
 ## Feature Documentation
 
-Detailed documentation for implemented features. Each feature has its own subfolder in [`docs/features/`](./features/).
+Dokumentasi detail per fitur yang sudah diimplementasi. Setiap fitur punya subfolder sendiri di [`docs/features/`](./features/).
 
-| Feature                                             | Description                                                                                              |
-| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Feature                                             | Description                                                                                                   |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | [LLM Hardening](./features/llm-hardening/README.md) | Service layer hardening + internal testing console — streaming retry policy, TurnLog, observability dashboard |
 
 ---
 
 ## Guides — Operational Runbooks
 
-Setup, configuration, and troubleshooting guides per provider.
+Setup, konfigurasi, dan troubleshooting per provider.
 
-| Document                                              | Description                                                    |
-| ----------------------------------------------------- | -------------------------------------------------------------- |
-| [DEPLOY_GUIDE.md](./guides/DEPLOY_GUIDE.md)           | Step-by-step deployment to production (Vercel + Supabase + Upstash) |
-| [LLM_SETUP.md](./guides/LLM_SETUP.md)                 | Provider options, fallback architecture, SDK setup             |
-| [HUGGINGFACE_GUIDE.md](./guides/HUGGINGFACE_GUIDE.md) | HuggingFace operational guide: setup, pricing, tuning, troubleshooting |
-| [GROQ_GUIDE.md](./guides/GROQ_GUIDE.md)               | Groq operational guide: setup, model options, free tier, troubleshooting |
+| Document                                              | Description                                                                |
+| ----------------------------------------------------- | -------------------------------------------------------------------------- |
+| [DEPLOY_GUIDE.md](./guides/DEPLOY_GUIDE.md)           | Step-by-step deploy ke production (Vercel + Supabase + Upstash)            |
+| [LLM_SETUP.md](./guides/LLM_SETUP.md)                 | Provider options, arsitektur fallback, SDK setup                           |
+| [HUGGINGFACE_GUIDE.md](./guides/HUGGINGFACE_GUIDE.md) | Panduan operasional HuggingFace: setup, pricing, tuning, troubleshooting   |
+| [GROQ_GUIDE.md](./guides/GROQ_GUIDE.md)               | Panduan operasional Groq: setup, model options, free tier, troubleshooting |
 
 ---
 
@@ -65,15 +65,15 @@ Login/register, role management, dashboards, image assessment.
 | [IMAGE_ASSESSMENT_SPEC.md](./phase-2/IMAGE_ASSESSMENT_SPEC.md) | CV model for skin photo analysis                 |
 | [API_ENDPOINTS.md](./phase-2/API_ENDPOINTS.md)                 | Auth, Admin, Doctor, Cadre, Region API endpoints |
 | [INCOGNITO_SPEC.md](./phase-2/INCOGNITO_SPEC.md)               | Incognito screening mode (logged-in users)       |
-| [DASHBOARD_SPEC.md](./phase-2/DASHBOARD_SPEC.md)               | Cadre, Doctor, Admin dashboard specs             |
+| [DASHBOARD_SPEC.md](./phase-2/DASHBOARD_SPEC.md)               | Kader, Dokter, Admin dashboard specs             |
 
 ---
 
 ## Phase 3 — Enhancement
 
-Real-time statistics, outbreak maps, notifications, PWA, self-deployed LLM.
+Statistik real-time, peta sebaran, notifikasi, PWA, self-deployed LLM.
 
-> Documentation will be added when Phase 3 begins.
+> Dokumentasi akan ditambahkan saat Fase 3 dimulai.
 
 ---
 

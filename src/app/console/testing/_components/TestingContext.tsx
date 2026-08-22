@@ -444,9 +444,13 @@ export function TestingProvider({ children }: { children: ReactNode }) {
       }
       dispatch({ type: 'SESSION_CREATED', sessionId: json.data.sessionId });
 
-      // Display greeting from session creation (bot initiates first)
-      if (json.data.greeting) {
-        dispatch({ type: 'GREETING_RECEIVED', text: json.data.greeting });
+      // Display the opening messages from session creation (bot initiates first).
+      // There can be more than one: with the image gate at the start, the photo
+      // request follows the greeting.
+      if (json.data.openingMessages?.length) {
+        for (const text of json.data.openingMessages) {
+          dispatch({ type: 'GREETING_RECEIVED', text });
+        }
         dispatch({ type: 'PHASE_UPDATE', phase: 'GREETING' });
       }
     } catch (err) {

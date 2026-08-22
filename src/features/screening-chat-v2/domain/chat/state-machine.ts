@@ -24,6 +24,15 @@ export interface SessionSnapshot {
   partial: boolean;
   chipsAnswered: ChipsType[];
   stagnationCount?: number;
+  /**
+   * Whether a visual result has been recorded for this session — a successful
+   * prediction or the documented permanent-failure fallback.
+   *
+   * Optional and defaulting to resolved: callers that have nothing to do with
+   * visual detection (v1, or any snapshot built before this field existed) must
+   * not accidentally get parked in AWAITING_IMAGE.
+   */
+  imageResolved?: boolean;
 }
 
 /**
@@ -32,11 +41,19 @@ export interface SessionSnapshot {
  * Priority order:
  * 1. Crisis override → CLOSED
  * 2. Hard turn limit → CLOSED
- * 3. Soft completion (R5): stagnation on last dimension → ASKING_PERCEPTION
- * 4. Dimensions remaining OR chips incomplete → COLLECTING
+ * 3. Dimensions remaining OR chips incomplete → COLLECTING, unless soft
+ *    completion (R5) releases the last stuck dimension
+ * 4. Photo not yet resolved → AWAITING_IMAGE
  * 5. Perception missing → ASKING_PERCEPTION
  * 6. Result not shown → SCREENING_COMPLETE
  * 7. Otherwise → FOLLOW_UP
+ *
+ * Soft completion decides only whether COLLECTING is over. It deliberately does
+ * not name a destination: an earlier version returned ASKING_PERCEPTION directly
+ * from step 3, which meant a session whose perception was already known got sent
+ * back to the perception phase on every turn and could never reach
+ * SCREENING_COMPLETE. Stagnation never resets once every dimension is filled, so
+ * that short-circuit latched on permanently.
  */
 export function nextPhase(s: SessionSnapshot): SessionPhase {
   if (s.crisisDetected) return 'CLOSED';
@@ -48,9 +65,9 @@ export function nextPhase(s: SessionSnapshot): SessionPhase {
     return 'COLLECTING';
   }
 
-  // R5: Soft completion — if only 1 dimension remains and stagnation threshold reached,
-  // skip that last dimension and move to perception (mark session partial)
-  if (shouldSoftComplete(s)) return 'ASKING_PERCEPTION';
+  // Snapshots from callers that predate visual detection (and v1) leave this
+  // unset; treating that as resolved keeps them out of the photo gate entirely.
+  const imageResolved = s.imageResolved ?? true;
 
   // Check if still collecting: dimensions remain OR chips-exclusive dims filled but chips not answered
   // If all dimensiBelum empty AND all chips-exclusive dims are in dimensiTerisi, proceed regardless of chips status
@@ -58,7 +75,14 @@ export function nextPhase(s: SessionSnapshot): SessionPhase {
     !allChipsAnswered(s.chipsAnswered) &&
     CHIPS_EXCLUSIVE_DIMENSIONS.some((dim) => s.dimensiBelum.includes(dim));
 
-  if (s.dimensiBelum.length > 0 || chipsStillNeeded) return 'COLLECTING';
+  // R5: soft completion abandons the one dimension the conversation is stuck on
+  // rather than looping on it. It skips a dimension, never the photo — the photo
+  // is mandatory regardless of how collecting ended, so stagnation must not
+  // become a way around the gate.
+  const stillCollecting = (s.dimensiBelum.length > 0 || chipsStillNeeded) && !shouldSoftComplete(s);
+
+  if (stillCollecting) return 'COLLECTING';
+  if (!imageResolved) return 'AWAITING_IMAGE';
   if (s.perception === null) return 'ASKING_PERCEPTION';
   if (!s.hasilDitampilkan) return 'SCREENING_COMPLETE';
   return 'FOLLOW_UP';
@@ -72,13 +96,20 @@ export function nextPhase(s: SessionSnapshot): SessionPhase {
  * - Stagnation count >= threshold (5 turns without new dimension fill)
  * - All chips are answered (or irrelevant to the stuck dimension)
  *
- * When triggered, the system force-transitions to ASKING_PERCEPTION,
- * accepting incomplete data rather than looping indefinitely.
+ * When triggered, collecting ends and that last dimension is abandoned, marking
+ * the session partial rather than looping on a question the santri will not
+ * answer.
+ *
+ * The dimension count is `=== 1`, not `<= 1`, and that is load-bearing. Zero
+ * remaining dimensions is not stagnation, it is success — the ordinary path
+ * already moves such a session on. Counting it as soft completion made this
+ * predicate true forever after collecting finished, because `updateStagnation`
+ * can never reset once there is nothing left to fill.
  */
 export function shouldSoftComplete(s: SessionSnapshot): boolean {
   const stagnation = s.stagnationCount ?? 0;
   return (
-    s.dimensiBelum.length <= 1 &&
+    s.dimensiBelum.length === 1 &&
     stagnation >= STAGNATION_THRESHOLD &&
     allChipsAnswered(s.chipsAnswered)
   );

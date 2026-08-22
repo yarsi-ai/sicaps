@@ -57,6 +57,7 @@
     "saved": "Tersimpan untuk riset (anonim)",
     "savedIncognito": "Sesi tidak disimpan · Mode incognito",
     "seeResult": "Lihat Hasil",
+    "waitingForImage": "Kirim foto dulu untuk buka hasil",
     "incognitoTitle": "Mode incognito",
     "incognitoOn": "🕶️ Incognito AKTIF — riwayat tidak tersimpan di perangkat ini",
     "incognitoOff": "👁️ Incognito NONAKTIF — riwayat akan tersimpan di perangkat ini",
@@ -71,7 +72,12 @@
     "micTitle": "Input suara",
     "sendTitle": "Kirim",
     "voiceTitle": "Mode suara",
-    "attachToast": "📷 Kirim foto — fitur Fase 2",
+    "consentTitle": "Izin Pengambilan Foto",
+    "consentPurpose": "Foto kulit yang kamu kirim akan dianalisis oleh AI untuk membantu mendeteksi tanda-tanda skabies.",
+    "consentPrivacy": "Foto disimpan secara aman dan hanya digunakan untuk skrining ini. Data kamu tidak akan dibagikan ke pihak lain.",
+    "consentRevocation": "Kamu bisa menolak tanpa mempengaruhi hasil skrining berbasis chat.",
+    "consentAccept": "Setuju",
+    "consentDecline": "Tolak",
     "voiceOn": "Mode suara aktif 🔊",
     "voiceOff": "Mode suara nonaktif",
     "offlineTitle": "Kamu sedang offline",
@@ -131,6 +137,13 @@
       }
     },
     "gejalaDetected": "{count}/3 gejala kunci terdeteksi",
+    "finalOutputSuspected": "Suspek Skabies",
+    "finalOutputNotScabies": "Tidak Skabies",
+    "finalOutputSubChat": "Risiko dari chat: {risk}",
+    "finalOutputSubVisual": "Foto: {result}",
+    "finalOutputVisualPositive": "tanda terdeteksi",
+    "finalOutputVisualNegative": "tidak ada tanda",
+    "finalOutputVisualFallback": "foto tidak terbaca",
     "detailShow": "Detail Penilaian",
     "detailHide": "Sembunyikan detail",
     "detailTitle": "Detail Penilaian",
@@ -141,7 +154,20 @@
     "detailLokasi": "Lokasi gatal di area khas skabies",
     "detailAsrama": "Tinggal di asrama/pondok",
     "detailTukarAlat": "Kebiasaan tukar alat pribadi",
-    "detailNote": "Risiko ditentukan dari kombinasi gejala kunci dan faktor risiko yang ditemukan selama percakapan."
+    "detailNote": "Risiko ditentukan dari kombinasi gejala kunci dan faktor risiko yang ditemukan selama percakapan.",
+    "detailVisualTitle": "Deteksi Visual",
+    "detailVisualPositive": "Tanda visual skabies terdeteksi",
+    "detailVisualNegative": "Tidak ditemukan tanda visual skabies",
+    "detailVisualFallback": "Foto tidak berhasil dianalisis. Hasil skrining tetap dihitung dari percakapan.",
+    "visualDetection": {
+      "title": "Deteksi Visual",
+      "positive": "Tanda visual terdeteksi",
+      "negative": "Tidak ada tanda visual",
+      "fallback": "Analisis foto tidak tersedia",
+      "finalLabel": "Hasil Akhir",
+      "finalSuspected": "Suspek Skabies",
+      "finalNotScabies": "Tidak Skabies"
+    }
   },
   "riwayat": {
     "title": "Riwayat Screening",
@@ -181,5 +207,25 @@
   },
   "a11y": {
     "skipToContent": "Langsung ke konten utama"
+  },
+  "imageUpload": {
+    "sheetTitle": "Kirim Foto",
+    "takePhoto": "Ambil Foto",
+    "chooseFromGallery": "Pilih dari Galeri",
+    "cancel": "Batal",
+    "invalidType": "Format file tidak didukung. Gunakan JPEG, PNG, atau WebP.",
+    "fileTooLarge": "Ukuran file terlalu besar. Maksimal 10 MB.",
+    "imageAlt": "Foto kulit yang dikirim",
+    "uploading": "Mengunggah foto",
+    "uploadComplete": "Foto berhasil dikirim",
+    "uploadFailed": "Gagal terkirim",
+    "analysisFailed": "Analisis gagal",
+    "retryUpload": "Coba lagi ({attemptsLeft} kesempatan)",
+    "expand": "Lihat foto lebih besar",
+    "closeExpanded": "Tutup foto",
+    "storedSecurely": "Foto tersimpan aman",
+    "storedSecurelyHint": "Hanya dipakai untuk skrining ini",
+    "inputHintAwaitingImage": "Ketuk + untuk kirim foto",
+    "uploadSkipped": "Fotonya belum berhasil masuk setelah beberapa kali dicoba. Tenang aja, hasil skrining kamu tetap aku siapkan dari obrolan kita ya. Siap lanjut?"
   }
 }

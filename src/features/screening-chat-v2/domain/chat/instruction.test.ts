@@ -286,10 +286,17 @@ describe('buildComposePrompt', () => {
     expect(result).toContain('hasil skrining final');
   });
 
+  it('routes AWAITING_IMAGE to fallback prompt', () => {
+    const result = buildComposePrompt('AWAITING_IMAGE', baseState);
+
+    expect(result).toContain('AWAITING_IMAGE');
+  });
+
   it('always includes persona in all routes', () => {
     const phases = [
       'GREETING',
       'COLLECTING',
+      'AWAITING_IMAGE',
       'ASKING_PERCEPTION',
       'OFFERING_RESULT',
       'FOLLOW_UP',

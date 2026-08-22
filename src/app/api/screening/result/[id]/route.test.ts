@@ -184,6 +184,9 @@ describe('GET /api/screening/result/:id (V2)', () => {
     aiRecommendation:
       'Segera konsultasi ke dokter\nJangan berbagi handuk\nCuci sprei seminggu sekali',
     aiSuggestion: 'Hindari menggaruk area yang gatal dan jaga kebersihan kulit.',
+    visualResult: null,
+    finalOutput: null,
+    visualPredictionFailed: false,
   };
 
   beforeEach(() => {

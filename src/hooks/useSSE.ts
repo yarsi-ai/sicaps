@@ -2,7 +2,16 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 
-const DEFAULT_TIMEOUT_MS = 35_000;
+/**
+ * How long the stream may go quiet before it is treated as dead.
+ *
+ * This is an idle budget, not a budget for the whole turn. A chat turn can
+ * legitimately run past half a minute — extraction and compose each get two
+ * attempts at the provider's timeout — and killing a request that is still
+ * producing output loses a reply the server has already committed to the
+ * database, leaving the visible transcript behind the real session.
+ */
+const IDLE_TIMEOUT_MS = 35_000;
 
 /** Parsed SSE event with optional event name */
 export interface SSEParsedEvent<TData = unknown> {
@@ -20,12 +29,13 @@ interface UseSSEOptions<TEvent> {
  * POSTs a JSON body and reads the response body as a stream of
  * named SSE events (`event: <name>\ndata: <json>\n\n`).
  * Native EventSource only supports GET, so streaming a POST needs a manual fetch + reader.
- * Aborts (and reports a timeout error) if the stream stalls past `timeoutMs`.
+ * Aborts (and reports a timeout error) if the stream goes quiet for `timeoutMs`.
+ * The deadline resets on every chunk, so a slow-but-alive turn is not cut off.
  */
 export function useSSE<TEvent>({
   onEvent,
   onError,
-  timeoutMs = DEFAULT_TIMEOUT_MS,
+  timeoutMs = IDLE_TIMEOUT_MS,
 }: UseSSEOptions<TEvent>) {
   const controllerRef = useRef<AbortController | null>(null);
 
@@ -34,7 +44,13 @@ export function useSSE<TEvent>({
       controllerRef.current?.abort();
       const controller = new AbortController();
       controllerRef.current = controller;
-      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+      let idleTimer: ReturnType<typeof setTimeout> | undefined;
+      const armIdleTimer = (): void => {
+        if (idleTimer !== undefined) clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => controller.abort(), timeoutMs);
+      };
+      armIdleTimer();
 
       try {
         const res = await fetch(url, {
@@ -54,6 +70,8 @@ export function useSSE<TEvent>({
         for (;;) {
           const { done, value } = await reader.read();
           if (done) break;
+          // Proof of life: the server is still working, so start the clock over.
+          armIdleTimer();
           buffer += decoder.decode(value, { stream: true });
           const chunks = buffer.split('\n\n');
           buffer = chunks.pop() ?? '';
@@ -83,7 +101,7 @@ export function useSSE<TEvent>({
         const isAbort = err instanceof DOMException && err.name === 'AbortError';
         onError?.(isAbort ? new Error('timeout') : (err as Error));
       } finally {
-        clearTimeout(timeout);
+        if (idleTimer !== undefined) clearTimeout(idleTimer);
       }
     },
     [onEvent, onError, timeoutMs],

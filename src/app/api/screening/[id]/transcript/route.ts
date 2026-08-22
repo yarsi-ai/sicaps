@@ -58,7 +58,7 @@ export async function GET(
       const messages = await prisma.chatMessage.findMany({
         where: { sessionId: parsedParams.data.id },
         orderBy: { createdAt: 'asc' },
-        select: { role: true, content: true, createdAt: true, isVoice: true },
+        select: { role: true, content: true, createdAt: true, isVoice: true, kind: true },
       });
 
       if (messages.length === 0) {
@@ -74,6 +74,9 @@ export async function GET(
           content: m.content,
           createdAt: m.createdAt.toISOString(),
           isVoice: m.isVoice,
+          // `IMAGE` turns render as a locked photo placeholder rather than text:
+          // the photo itself lives in a private bucket and is never served here.
+          kind: m.kind,
         })),
       };
 

@@ -2,7 +2,7 @@
 
 > **Scope:** Rules for all developers and AI agents working on this codebase.  
 > **Stack:** Next.js 16 (App Router), TypeScript, Tailwind CSS, Prisma, Supabase  
-> **Last updated:** June 23, 2026
+> **Last updated:** 23 Juni 2026
 
 ---
 
@@ -320,10 +320,24 @@ describe('calculateCategoryScore', () => {
 ### 9.3 What NOT To Test (MVP)
 
 - Radix primitives (tested upstream — Dialog, Select, Toast)
-- Pure visual components without logic (Button styling, Card layout)
+- Pure visual components tanpa logic (Button styling, Card layout)
 - React component rendering (UI volatile, iterate fast)
 - Tailwind classes
 - Static pages
+
+**Pengecualian — gating & branching logic di komponen.** Kalau sebuah komponen
+memutuskan sesuatu (tombol disabled/enabled, redirect, cabang state yang beda
+tampilannya), keputusan itu tetap wajib ditest walaupun letaknya di komponen.
+Yang dilarang adalah menguji _rendering_ dan _styling_; yang diwajibkan adalah
+menguji _aturan_. Contoh yang termasuk pengecualian ini:
+
+- `ChatFinished` — "Lihat Hasil" disabled selama `imageGateResolved` false
+- `ResultScreen` — gate check redirect ke `/chat` saat gate belum resolve
+- `useImageUpload` — pemetaan response API ke state
+
+Assertion terhadap class Tailwind tetap dihindari, kecuali class itu memang
+satu-satunya cara mengamati keputusan tersebut (misal `border-accent-danger`
+sebagai penanda state error).
 
 ### 9.4 Mocking Strategy
 

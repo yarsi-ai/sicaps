@@ -6,8 +6,9 @@
  */
 
 import { prisma } from '@/db/prisma';
-import { Prisma } from '@prisma/client';
+import { Prisma, type ChatMessageKind } from '@prisma/client';
 import { getPrimaryClient, getLLMConfig } from '@/lib/llm';
+import { combineFinalOutput } from '@/lib/vision';
 import { calculateRisk } from '../domain/scoring/engine';
 import { buildSummary } from '../domain/chat/checkpoint';
 import { buildResultPrompt } from '../adapters/llm/prompts';
@@ -19,9 +20,11 @@ import {
   LLM_MAX_TOKENS_CEILING,
   FINISH_REASON_TRUNCATED,
 } from '../domain/config';
+import { VISUAL_DETECTION_GATE_AT_START } from '@/lib/config';
 import { getBotText, getEdukasiPoints, type Locale } from '../domain/chat/bot-text';
 import { ALL_DIMENSIONS } from '../domain/types';
-import type { RiskLevel, SessionPhase, ScoringState } from '../domain/types';
+import { nextPhase } from '../domain/chat/state-machine';
+import type { ChipsType, RiskLevel, SessionPhase, ScoringState } from '../domain/types';
 
 // --- Public Interfaces ---
 
@@ -33,7 +36,15 @@ export interface StartInput {
 export interface StartResponse {
   sessionId: string;
   phase: SessionPhase;
-  greeting: string;
+  /**
+   * Bot messages the session opens with, in order, exactly as persisted to
+   * `chat_message`. The client renders these rather than authoring its own copy,
+   * so what the santri reads and what the transcript stores cannot drift.
+   *
+   * Usually just the greeting. With VISUAL_DETECTION_GATE_AT_START the photo
+   * request follows it, because the gate opens before any turn happens.
+   */
+  openingMessages: string[];
 }
 
 export interface ResultResponse {
@@ -48,6 +59,12 @@ export interface ResultResponse {
   aiPerceptionResponse: string | null;
   aiRecommendation: string | null;
   aiSuggestion: string | null;
+  /** Visual detection result (POSITIVE/NEGATIVE) from image analysis */
+  visualResult: 'POSITIVE' | 'NEGATIVE' | null;
+  /** Combined final output from chat risk + visual detection */
+  finalOutput: 'SUSPECTED_SCABIES' | 'NOT_SCABIES' | null;
+  /** Whether visual prediction failed after exhausting retries */
+  visualPredictionFailed: boolean;
 }
 
 export interface ResumeResponse {
@@ -56,7 +73,13 @@ export interface ResumeResponse {
   turnCount: number;
   dimensiTerisi: Record<string, { keywords: string[]; negasi: string[] }>;
   dimensiBelum: string[];
-  messages: Array<{ role: 'user' | 'assistant'; content: string; timestamp: string }>;
+  messages: Array<{
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: string;
+    /** `IMAGE` marks the turn where a photo was submitted; the UI renders a bubble. */
+    kind: ChatMessageKind;
+  }>;
 }
 
 export interface SessionStateResponse {
@@ -96,16 +119,31 @@ export async function createSession(input: StartInput): Promise<StartResponse> {
     },
   });
 
-  // Generate initial greeting message from system, in the session's language
-  const greetingText = getBotText(input.locale ?? 'id').greeting;
-  await prisma.chatMessage.create({
-    data: {
-      sessionId: session.id,
-      role: 'assistant',
-      content: greetingText,
-      isVoice: false,
-    },
-  });
+  // Opening bot messages, in the session's language. Normally just the greeting;
+  // the temporary VISUAL_DETECTION_GATE_AT_START switch opens the image gate
+  // before the first turn, so the photo request has to ride along here instead
+  // of arriving with the SCREENING_COMPLETE transition.
+  const botText = getBotText(input.locale ?? 'id');
+  const openingMessages = VISUAL_DETECTION_GATE_AT_START
+    ? [botText.greeting, botText.imageGateOpening]
+    : [botText.greeting];
+  // Explicit timestamps: inside a transaction Postgres' now() is the transaction
+  // instant, identical for every row, which would leave `orderBy: createdAt`
+  // free to swap the greeting and the photo request.
+  const openedAt = Date.now();
+  await prisma.$transaction(
+    openingMessages.map((content, index) =>
+      prisma.chatMessage.create({
+        data: {
+          sessionId: session.id,
+          role: 'assistant',
+          content,
+          isVoice: false,
+          createdAt: new Date(openedAt + index),
+        },
+      }),
+    ),
+  );
 
   await prisma.auditLog.create({
     data: {
@@ -118,7 +156,7 @@ export async function createSession(input: StartInput): Promise<StartResponse> {
   return {
     sessionId: session.id,
     phase: session.phase as SessionPhase,
-    greeting: greetingText,
+    openingMessages,
   };
 }
 
@@ -201,6 +239,10 @@ export async function getResult(sessionId: string): Promise<ResultResponse | nul
     aiRecommendation:
       ((result as Record<string, unknown>).aiRecommendation as string | null) ?? null,
     aiSuggestion: ((result as Record<string, unknown>).aiSuggestion as string | null) ?? null,
+    // Visual detection fields — Prisma enums, so they arrive already narrowed.
+    visualResult: result.visualResult ?? null,
+    finalOutput: result.finalOutput ?? null,
+    visualPredictionFailed: result.visualPredictionFailed ?? false,
   };
 }
 
@@ -262,6 +304,23 @@ export async function finalize(sessionId: string): Promise<ResultResponse> {
 
   const perception = session.perception ?? 'adequate';
 
+  // The image gate and the chat can finish in either order: normally the photo
+  // arrives after SCREENING_COMPLETE and `submitImage` writes the combination,
+  // but a photo submitted earlier has no ScreeningResult to write onto yet. Fold
+  // it in here so both orders converge on the same stored result.
+  const image = await prisma.screeningImage.findUnique({
+    where: { sessionId },
+    select: { visualResult: true, predictionFailed: true },
+  });
+
+  const visualFields = image?.visualResult
+    ? {
+        visualResult: image.visualResult,
+        visualPredictionFailed: image.predictionFailed,
+        finalOutput: combineFinalOutput(scoringResult.riskLevel, image.visualResult),
+      }
+    : {};
+
   // 4. Upsert single ScreeningResult (sessionId is @unique — no revision)
   await prisma.screeningResult.upsert({
     where: { sessionId },
@@ -273,6 +332,7 @@ export async function finalize(sessionId: string): Promise<ResultResponse> {
       scoringState: scoringResult.state as unknown as Prisma.InputJsonValue,
       perception: perception.toUpperCase() as Prisma.ScreeningResultCreateInput['perception'],
       partial: session.partial,
+      ...visualFields,
     },
     update: {
       riskLevel: scoringResult.riskLevel,
@@ -281,6 +341,7 @@ export async function finalize(sessionId: string): Promise<ResultResponse> {
       scoringState: scoringResult.state as unknown as Prisma.InputJsonValue,
       perception: perception.toUpperCase() as Prisma.ScreeningResultCreateInput['perception'],
       partial: session.partial,
+      ...visualFields,
     },
   });
 
@@ -354,7 +415,102 @@ export async function finalize(sessionId: string): Promise<ResultResponse> {
     aiPerceptionResponse: null,
     aiRecommendation: null,
     aiSuggestion: null,
+    // Populated only when the photo arrived before the chat finished; in the
+    // normal order these stay null here and submitImage fills them in after.
+    visualResult: visualFields.visualResult ?? null,
+    finalOutput: visualFields.finalOutput ?? null,
+    visualPredictionFailed: visualFields.visualPredictionFailed ?? false,
   };
+}
+
+/**
+ * Advance the phase once a photo has been recorded, and produce the bot message
+ * the new phase owes the santri.
+ *
+ * The image gate is left by an upload, not by a chat turn, so the normal
+ * transition path in `processChatTurn` never runs for it. This is the equivalent
+ * entry point: it rebuilds the same snapshot, asks the same `nextPhase`, and
+ * writes the result — so the gate cannot drift from the rest of the machine.
+ *
+ * Returns `followUpMessage` when the new phase owes a question. Landing in
+ * ASKING_PERCEPTION is the case that matters: no user turn follows the upload, so
+ * without this the santri would be left facing a phase that never spoke. The
+ * static copy is used rather than an LLM compose because it is deterministic and
+ * already the documented fallback for that question.
+ *
+ * Asking that question is also recorded, not just returned: `perceptionStep`
+ * moves to ASK_SEVERITY so the next chat turn knows the santri's reply is an
+ * answer to it. Callers that will not deliver the message must say so via
+ * `suppressFollowUp`, otherwise the session would claim to have asked something
+ * the santri never saw — the exact confusion that had a reply to "Siap lanjut?"
+ * scored as a perception answer.
+ *
+ * Requirements: 2.2
+ */
+export async function advancePhaseAfterImage(
+  sessionId: string,
+  options: { suppressFollowUp?: boolean } = {},
+): Promise<{
+  phase: SessionPhase;
+  followUpMessage: string | null;
+}> {
+  const session = await prisma.screeningSession.findUniqueOrThrow({
+    where: { id: sessionId },
+    select: {
+      locale: true,
+      phase: true,
+      dimensiBelum: true,
+      perception: true,
+      hasilDitampilkan: true,
+      turnCount: true,
+      partial: true,
+      chipsAnswered: true,
+      stagnationCount: true,
+    },
+  });
+
+  const previousPhase = session.phase as SessionPhase;
+
+  const newPhase = nextPhase({
+    phase: previousPhase,
+    dimensiBelum: session.dimensiBelum,
+    perception: session.perception,
+    hasilDitampilkan: session.hasilDitampilkan,
+    crisisDetected: false,
+    turnCount: session.turnCount,
+    partial: session.partial,
+    chipsAnswered: session.chipsAnswered as ChipsType[],
+    stagnationCount: session.stagnationCount,
+    imageResolved: true,
+  });
+
+  if (newPhase === previousPhase) {
+    return { phase: previousPhase, followUpMessage: null };
+  }
+
+  const locale: Locale = session.locale === 'en' ? 'en' : 'id';
+  const asksSeverityNow = newPhase === 'ASKING_PERCEPTION' && !options.suppressFollowUp;
+  const followUpMessage = asksSeverityNow ? getBotText(locale).perceptionSeverity : null;
+
+  await prisma.screeningSession.update({
+    where: { id: sessionId },
+    data: {
+      phase: newPhase,
+      ...(asksSeverityNow
+        ? { perceptionStep: 'ASK_SEVERITY', perceptionStartTurn: session.turnCount }
+        : {}),
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      sessionId,
+      event: 'phase_transition',
+      detail: { from: previousPhase, to: newPhase, trigger: 'image_submitted' },
+    },
+  });
+
+  return { phase: newPhase, followUpMessage };
 }
 
 /**
@@ -389,13 +545,14 @@ export async function resumeSession(sessionId: string): Promise<ResumeResponse |
   const chatMessages = await prisma.chatMessage.findMany({
     where: { sessionId },
     orderBy: { createdAt: 'asc' },
-    select: { role: true, content: true, createdAt: true },
+    select: { role: true, content: true, createdAt: true, kind: true },
   });
 
   const messages = chatMessages.map((m) => ({
     role: m.role as 'user' | 'assistant',
     content: m.content,
     timestamp: m.createdAt.toISOString(),
+    kind: m.kind,
   }));
 
   return {

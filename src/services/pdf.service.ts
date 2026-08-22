@@ -10,7 +10,7 @@ import type { SupportedLocale } from '@/lib/config';
 const LABELS: Record<SupportedLocale, Record<string, string>> = {
   id: {
     title: 'SICAPS - Screening Skabies',
-    institution: 'Universitas Yarsi',
+    institution: 'Universitas YARSI',
     riskLevel: 'Tingkat Risiko',
     totalScore: 'Skor Total',
     scoreBreakdown: 'Rincian Skor per Kategori',
@@ -28,7 +28,7 @@ const LABELS: Record<SupportedLocale, Record<string, string>> = {
   },
   en: {
     title: 'SICAPS - Scabies Screening',
-    institution: 'Universitas Yarsi',
+    institution: 'Universitas YARSI',
     riskLevel: 'Risk Level',
     totalScore: 'Total Score',
     scoreBreakdown: 'Score Breakdown by Category',

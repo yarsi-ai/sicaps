@@ -2,471 +2,468 @@
 
 ## 1. Overview
 
-**Product Name:** SICAPS (Smart AI System for Scabies Screening)  
-**Version:** MVP (Phase 1)  
-**By:** dr. Widjayanti — Yarsi University  
-**Date:** June 22, 2026
+**Nama Produk:** SICAPS (Sistem Cerdas AI untuk Pemeriksaan Skabies)  
+**Versi:** MVP (Fase 1)  
+**Oleh:** dr. Widjayanti — Universitas YARSI  
+**Tanggal:** 22 Juni 2026
 
-### 1.1 Product Description
+### 1.1 Deskripsi Produk
 
-SICAPS is a web-based chatbot that performs preliminary scabies screening through interactive conversation. The system receives voice or text input from users, extracts clinical keywords, calculates risk scores, understands patient disease perception, and provides output including risk conclusions, psychological responses, action recommendations, and personalized care advice.
+SICAPS adalah chatbot berbasis web yang melakukan skrining awal skabies melalui percakapan interaktif. Sistem menerima input suara atau teks dari pengguna, mengekstrak keyword klinis, menghitung skor risiko, memahami persepsi penyakit pasien, dan memberikan output berupa kesimpulan risiko, respons psikologis, rekomendasi aksi, serta saran penanganan yang dipersonalisasi.
 
-### 1.2 Objectives
+### 1.2 Tujuan
 
-- Provide accessible preliminary scabies screening for santri (students) at pesantren (Islamic boarding schools)
-- Facilitate health cadres in recording and monitoring santri health
-- Provide education and care advice based on risk level
-- Collect epidemiological data for research
-- Connect screening results with doctors for clinical review
+- Menyediakan skrining awal skabies yang mudah diakses oleh santri di pondok pesantren
+- Memfasilitasi kader kesehatan dalam pencatatan dan monitoring kesehatan santri
+- Memberikan edukasi dan saran penanganan berdasarkan tingkat risiko
+- Mengumpulkan data epidemiologi untuk penelitian
+- Menghubungkan hasil screening dengan dokter untuk review klinis
 
-### 1.3 Target Users
+### 1.3 Target User
 
-| User | Description |
-|------|-------------|
-| Santri | Primary users who undergo screening (via cadre or independently) |
-| Health Cadre | Field workers who input/record santri screenings |
-| Doctor | Medical professionals who review screening results |
-| Admin/Researcher | System administrators and research data collectors |
-| General Public | Anyone who wants to do self-screening |
+| User | Deskripsi |
+|------|-----------|
+| Santri | Pengguna utama yang melakukan screening (via kader atau mandiri) |
+| Kader Kesehatan | Petugas lapangan yang menginput/mencatat screening santri |
+| Dokter | Tenaga medis yang mereview hasil screening |
+| Admin/Peneliti | Pengelola sistem dan pengumpul data riset |
+| User Umum | Masyarakat umum yang ingin screening mandiri |
 
 ---
 
 ## 2. User Roles & Permissions
 
 ### 2.1 Admin
-| Feature | Description |
-|---------|-------------|
-| Approve/Reject User | Manage Cadre and Doctor registrations |
-| View All Data | Access all screening data |
-| Export Data | Download CSV/Excel for research |
-| Manage Users | Activate/deactivate accounts |
+| Fitur | Deskripsi |
+|-------|-----------|
+| Approve/Reject User | Mengelola registrasi Kader dan Dokter |
+| Lihat Semua Data | Akses seluruh data screening |
+| Export Data | Download CSV/Excel untuk riset |
+| Kelola User | Aktivasi/deaktivasi akun |
 
-### 2.2 Doctor (Requires Admin Approval)
-| Feature | Description |
-|---------|-------------|
-| Review Queue | View screenings with score ≥ 4 |
-| Review Results | Confirm/correct AI diagnosis |
-| Clinical Response | Structured input + free text + override suggestions |
-| Referral | Direct patients to healthcare facilities |
+### 2.2 Dokter (Perlu Approval Admin)
+| Fitur | Deskripsi |
+|-------|-----------|
+| Antrian Review | Melihat screening dengan skor ≥ 4 |
+| Review Hasil | Konfirmasi/koreksi diagnosis AI |
+| Respons Klinis | Structured input + free text + override saran |
+| Rujukan | Mengarahkan pasien ke fasilitas kesehatan |
 
-### 2.3 Cadre (Requires Admin Approval)
-| Feature | Description |
-|---------|-------------|
-| Manage Respondents | Add/edit respondent data (santri/participants) |
-| Run Screening | Start screening session for respondents |
-| View Results | View screening results + doctor responses |
-| Hand Over Device | Give device to respondent when answering questions |
+### 2.3 Kader (Perlu Approval Admin)
+| Fitur | Deskripsi |
+|-------|-----------|
+| Kelola Responden | Tambah/edit data responden (santri/peserta) |
+| Jalankan Screening | Memulai sesi screening untuk responden |
+| Lihat Hasil | Melihat hasil screening + respons dokter |
+| Serahkan Device | Memberikan device ke responden saat menjawab pertanyaan |
 
-### 2.4 General User (Login Optional)
-| Feature | Description |
-|---------|-------------|
-| Self-Screening | Fill demographics + run screening independently |
-| History | View own screening history |
-| Incognito Mode | Screening not saved to account history (see [AI_BOT_SPEC.md §14.3](./phase-1/AI_BOT_SPEC.md)) |
+### 2.4 User Umum (Login Opsional)
+| Fitur | Deskripsi |
+|-------|-----------|
+| Screening Mandiri | Isi demografis + jalankan screening sendiri |
+| Riwayat | Melihat riwayat screening sendiri |
+| Mode Incognito | Screening tanpa tersimpan di riwayat akun (lihat [AI_BOT_SPEC.md §14.3](./phase-1/AI_BOT_SPEC.md)) |
 
-### 2.5 Anonymous (No Login)
-| Feature | Description |
-|---------|-------------|
-| One-time Screening | Fill minimal demographics + screening |
-| View Results | At end of session + shareable link |
-| Local History | Stored in browser (localStorage, 30 days). Can review results & chat transcript. |
-| Data Stored | For research purposes (with session UUID) |
+### 2.5 Anonim (Tanpa Login)
+| Fitur | Deskripsi |
+|-------|-----------|
+| Screening 1x | Isi demografis minimal + screening |
+| Lihat Hasil | Di akhir sesi + shareable link |
+| Riwayat Lokal | Tersimpan di browser (localStorage, 30 hari). Bisa lihat ulang hasil & transcript chat. |
+| Data Tersimpan | Untuk keperluan riset (dengan UUID session) |
 
 ---
 
-## 3. Features & User Stories
+## 3. Fitur & User Stories
 
 ### 3.1 Landing Page
 
-**US-01:** As a visitor, I want to see an explanation of SICAPS so I understand its function.
+**US-01:** Sebagai pengunjung, saya ingin melihat penjelasan SICAPS agar memahami fungsinya.
 
 **Acceptance Criteria:**
-- Display title "SICAPS – Check Your Itch Symptoms with AI"
-- Brief description: analyze symptoms, assess scabies risk, provide advice
-- Disclaimer at start: "SICAPS is not a substitute for doctors. Screening results are educational."
-- CTA buttons: "Start Screening" and "Login"
-- Link to How to Use page
-- "Screening History" button (secondary) — only shown if history data exists in localStorage
+- Menampilkan judul "SICAPS – Cek Keluhan Gatalmu dengan AI"
+- Deskripsi singkat: analisis gejala, nilai risiko skabies, berikan saran
+- Disclaimer di awal: "SICAPS bukan pengganti dokter. Hasil skrining bersifat edukasi."
+- Tombol CTA: "Mulai Screening" dan "Login"
+- Link ke halaman Cara Penggunaan
+- Tombol "Riwayat Screening" (secondary) — hanya tampil jika ada data riwayat di localStorage
 
 ---
 
-### 3.2 Authentication & Registration
+### 3.2 Autentikasi & Registrasi
 
-**US-02:** As a user, I want to register and login according to my role.
+**US-02:** Sebagai user, saya ingin mendaftar dan login sesuai role saya.
 
 **Acceptance Criteria:**
-- Registration form with role selection: Cadre, Doctor, General User
+- Form register dengan pilihan role: Kader, Dokter, User Umum
 - Login via email/password (Supabase Auth)
-- Option "Continue without login" for anonymous
-- Cadre & Doctor get "Pending Approval" status after registration
-- Informative message if account not yet approved
-- Redirect by role after login
+- Opsi "Lanjut tanpa login" untuk anonim
+- Kader & Dokter mendapat status "Pending Approval" setelah register
+- Pesan informatif jika akun belum di-approve
+- Redirect sesuai role setelah login
 
 ---
 
-### 3.3 Demographics Form
+### 3.3 Form Demografis
 
-**US-03:** As a user/cadre, I want to fill respondent demographic data for research purposes.
+**US-03:** Sebagai user/kader, saya ingin mengisi data demografis responden untuk keperluan riset.
 
 **Acceptance Criteria:**
 
-#### 3.3.1 Pre-chat Form (Filled by all users before screening)
+#### 3.3.1 Pre-chat Form (Diisi oleh semua user sebelum screening)
 
-| Field | Type | Notes |
-|-------|------|-------|
-| Name | Text | Optional |
-| Age | Number | Years |
-| Gender | Toggle | Male, Female |
-| Education Level | Dropdown | Elementary, Junior High, Senior High, University |
+| Field | Tipe | Keterangan |
+|-------|------|------------|
+| Nama | Text | Opsional |
+| Usia | Number | Tahun |
+| Jenis Kelamin | Toggle | Laki-laki, Perempuan |
+| Tingkat Pendidikan | Dropdown | SD, SMP, SMA, Perguruan Tinggi |
 
-- Only 1 step, minimal friction
-- Education Level determines chat theme (Elementary → Playful, others → Hybrid)
-- Habits and history data gathered by bot during chat (see [AI_BOT_SPEC.md §2.3](./phase-1/AI_BOT_SPEC.md))
+- Hanya 1 step, minimal friction
+- Tingkat Pendidikan menentukan chat theme (SD → Playful, lainnya → Hybrid)
+- Data kebiasaan dan riwayat digali oleh bot dalam chat (lihat [AI_BOT_SPEC.md §2.3](./phase-1/AI_BOT_SPEC.md))
 
+#### 3.3.2 Form Pengelompokan Kader (Fase 2)
 
-#### 3.3.2 Cadre Grouping Form (Phase 2)
+Data lokasi dan institusi dikelola oleh Kader di dashboard terpisah:
 
-Location and institution data managed by Cadre in separate dashboard:
+| Field | Tipe | Keterangan |
+|-------|------|------------|
+| Provinsi | Dropdown | Bertingkat (data Kemendagri) |
+| Kabupaten/Kota | Dropdown | Filter by Provinsi |
+| Kecamatan | Dropdown | Filter by Kab/Kota |
+| Desa/Kelurahan | Dropdown | Filter by Kecamatan |
+| Nama Pondok/Institusi | Text | Opsional |
+| Durasi Tinggal | Dropdown | <6 bln, 6-12 bln, 1-2 thn, >2 thn |
+| Jumlah Penghuni Kamar | Number | — |
 
-| Field | Type | Notes |
-|-------|------|-------|
-| Province | Dropdown | Cascading (Kemendagri data) |
-| Regency/City | Dropdown | Filter by Province |
-| District | Dropdown | Filter by Regency/City |
-| Village | Dropdown | Filter by District |
-| Pondok/Institution Name | Text | Optional |
-| Residence Duration | Dropdown | <6 mo, 6-12 mo, 1-2 yr, >2 yr |
-| Room Occupants | Number | — |
-
-- This data is attached to cadre/pondok profile, not per screening session
-- Used for regional grouping and statistics
+- Data ini melekat ke profil kader/pondok, bukan per sesi screening
+- Digunakan untuk pengelompokan dan statistik wilayah
 
 ---
 
 ### 3.4 Chat Screening
 
-**US-04:** As a user, I want to interact with the chatbot to describe my symptoms via text or voice.
+**US-04:** Sebagai user, saya ingin berinteraksi dengan chatbot untuk menceritakan keluhan melalui teks atau suara.
 
-> **Full details:** See [AI_BOT_SPEC.md](./phase-1/AI_BOT_SPEC.md) for persona specification, conversation flow, keyword extraction, adaptive language, edge cases, and safety guardrails.
+> **Detail lengkap:** Lihat [AI_BOT_SPEC.md](./phase-1/AI_BOT_SPEC.md) untuk spesifikasi persona, conversation flow, keyword extraction, adaptive language, edge cases, dan safety guardrails.
 
 **Acceptance Criteria:**
-- Bubble chat UI (WhatsApp-like)
-- Input: text field + voice button (Web Speech API browser)
-- Output: text bubble + voice output (Web Speech API TTS) — see [AI_BOT_SPEC.md §13](./phase-1/AI_BOT_SPEC.md)
-- Voice mode toggle in input area (next to mic button 🎤): ON → auto-TTS + auto-STT (full-voice experience)
-- Long-press AI bubble → play TTS for that bubble (on-demand)
-- AI starts with static greeting (different per theme — see AI_BOT_SPEC §2.4)
-- AI explores 6 scoring categories **adaptively** (not rigidly sequential):
-  1. Itch intensity
-  2. Time of occurrence
-  3. Body location distribution
-  4. Contact history
-  5. Skin lesions
-  6. Risk factors (incl. habits, scabies/treatment history)
-- User perception **inferred** from conversation context (not separate question)
-- Chat theme determined by education level: Elementary → Playful, others → Hybrid
-- Follow-up max 1x per category if confidence is low. If still ambiguous → accept as `medium` confidence, include in scoring
-- Chat input disabled after result displayed (no post-result interaction)
+- UI bubble chat (mirip WhatsApp)
+- Input: text field + tombol voice (Web Speech API browser)
+- Output: text bubble + voice output (Web Speech API TTS) — lihat [AI_BOT_SPEC.md §13](./phase-1/AI_BOT_SPEC.md)
+- Voice mode toggle di input area (sebelah tombol mic 🎤): ON → auto-TTS + auto-STT (full-voice experience)
+- Long-press bubble AI → play TTS bubble tersebut (on-demand)
+- AI memulai dengan greeting statis (berbeda per theme — lihat AI_BOT_SPEC §2.4)
+- AI menggali 6 kategori scoring secara **adaptive** (bukan rigid berurutan):
+  1. Intensitas gatal
+  2. Waktu muncul
+  3. Distribusi lokasi tubuh
+  4. Riwayat kontak
+  5. Lesi kulit
+  6. Faktor risiko (incl. kebiasaan, riwayat skabies/pengobatan)
+- Persepsi user di-**infer** dari konteks percakapan (bukan pertanyaan terpisah)
+- Chat theme ditentukan oleh tingkat pendidikan: SD → Playful, lainnya → Hybrid
+- Follow-up max 1x per kategori jika confidence rendah. Jika tetap ambigu → terima sebagai confidence `medium`, masuk scoring
+- Chat input di-disable setelah result ditampilkan (tidak ada interaksi post-result)
 
 ---
 
 ### 3.5 Keyword Extraction & Scoring (Backend)
 
-**US-05:** As the system, I extract keywords and calculate risk scores accurately.
+**US-05:** Sebagai sistem, saya mengekstrak keyword dan menghitung skor risiko secara akurat.
 
-> **LLM & extraction architecture details:** See [AI_BOT_SPEC.md §3-4](./phase-1/AI_BOT_SPEC.md)
+> **Detail arsitektur LLM & extraction:** Lihat [AI_BOT_SPEC.md §3-4](./phase-1/AI_BOT_SPEC.md)
 
 **Acceptance Criteria:**
 
-**Flow:**
-1. User responds → send to LLM (single call: respond + extract)
-2. LLM extracts keywords per category + confidence score (high/medium/low) → return structured JSON
-3. Backend normalize & match keywords to score table → calculate score per category
-4. Backend update state → send instruction to LLM for next turn
+**Alur:**
+1. User menjawab → kirim ke LLM (single call: respond + extract)
+2. LLM ekstrak keywords per kategori + confidence score (high/medium/low) → return structured JSON
+3. Backend normalize & match keywords ke tabel skor → hitung skor per kategori
+4. Backend update state → kirim instruction ke LLM untuk turn berikutnya
 
 **Scoring Rules:**
-- Cumulative: all matching keywords summed
-- Longest match priority: "very itchy" matches → "itchy" not counted again
-- Unique: each unique keyword counted only 1x even if repeated
-- Floor 0 per category: negative keywords reduce, but min score = 0
-- Total final score also floors at 0
-- Confidence `low` → keyword not included in scoring until confirmed
-- Confidence `medium`/`high` → keyword included in scoring
+- Kumulatif: semua keyword yang match dijumlahkan
+- Longest match priority: "gatal banget" match → "gatal" tidak dihitung lagi
+- Unique: setiap keyword unik hanya dihitung 1x meskipun diulang
+- Floor 0 per kategori: keyword negatif mengurangi, tapi skor min = 0
+- Total skor akhir juga floor 0
+- Confidence `low` → keyword tidak masuk scoring sampai dikonfirmasi
+- Confidence `medium`/`high` → keyword masuk scoring
 
-**Keyword & Score Table:**
+**Tabel Keyword & Skor:**
 
-**Itch Intensity (score per pattern: 1):**
-| Keyword | Score |
-|---------|-------|
-| very itchy, itchy, severe, very severe | 1 |
-| can't stand it / unbearable | 1 |
-| want to scratch constantly / keep scratching | 1 |
-| disturbs sleep / wake up at night / can't sleep | 1 |
-| until wounded / bleeding | 1 |
-| stinging, somewhat itchy / slightly itchy, just a little | 0 |
+**Intensitas Gatal (skor per pattern: 1):**
+| Keyword | Skor |
+|---------|------|
+| gatal banget, gatal, parah, parah banget | 1 |
+| ga tahan / nggak tahan | 1 |
+| pengen garuk terus / garuk terus | 1 |
+| ganggu tidur / sampe kebangun / ga bisa tidur | 1 |
+| sampe luka / berdarah | 1 |
+| perih, lumayan gatal / agak gatal, dikit doang | 0 |
 
-**Timing (score per pattern: 2):**
-| Keyword | Score |
-|---------|-------|
-| night / every night | 2 |
-| worse at night | 2 |
-| before sleep / midnight / wake up at night / dawn | 2 |
-| Better during day/morning | 1 |
-| all day / continuously | 1 |
+**Waktu (skor per pattern: 2):**
+| Keyword | Skor |
+|---------|------|
+| malam / tiap malam | 2 |
+| makin parah malam | 2 |
+| pas mau tidur / tengah malam / kebangun malam / subuh | 2 |
+| Siang/Pagi mendingan | 1 |
+| sepanjang hari / terus-terusan | 1 |
 
-**Location (score per pattern: 2):**
-| Keyword | Score |
-|---------|-------|
-| between fingers / finger webs | 2 |
-| genitals / scrotum / penis | 2 |
-| fingers / wrist / armpit / navel / stomach / waist / buttocks / groin / inner thigh / chest | 1 |
-| Whole body | 0 |
+**Lokasi (skor per pattern: 2):**
+| Keyword | Skor |
+|---------|------|
+| sela jari / sela sela jari | 2 |
+| kelamin / buah zakar / batang kelamin | 2 |
+| jari tangan / pergelangan / ketiak / pusar / perut / pinggang / bokong / pantat / selangkangan / paha dalam / dada | 1 |
+| Seluruh badan | 0 |
 
-**Contact History (score per pattern: 2):**
-| Keyword | Score |
-|---------|-------|
-| roommate / same room | 2 |
-| housemate / pondok friend | 2 |
-| many people itchy / itchy together / infected / contagious | 2 |
-| same bed / same blanket | 2 |
+**Riwayat Kontak (skor per pattern: 2):**
+| Keyword | Skor |
+|---------|------|
+| temen sekamar / teman sekamar / satu kamar | 2 |
+| serumah / temen pondok | 2 |
+| banyak yang gatal / barengan gatal / ketularan / nular | 2 |
+| satu kasur / satu selimut | 2 |
 
-**Skin Lesions (score per pattern: 2):**
-| Keyword | Score |
-|---------|-------|
-| papules / small bumps | 2 |
-| bumps / welts | 1 |
-| redness / rash | 1 |
-| scratches / wounds / scratch marks / scabs / pus | 1 |
-| lines / tracks | 1 |
-| like insect bites | 0 |
-| dry skin / cracked skin | 0 |
+**Lesi Kulit (skor per pattern: 2):**
+| Keyword | Skor |
+|---------|------|
+| bintil / bintil kecil | 2 |
+| bentol / bentol bentol | 1 |
+| merah merah / beruntusan | 1 |
+| lecet / luka / luka garukan / koreng / bernanah | 1 |
+| garis / jalur | 1 |
+| kayak digigit | 0 |
+| kulit kering / pecah pecah | 0 |
 
-**Risk Factors (score per pattern: 2):**
-| Keyword | Score |
-|---------|-------|
-| pondok / dormitory | 2 |
-| crowded room / many people / cramped | 2 |
-| sharing clothes / borrowing clothes / sharing sarong / sharing towel | 2 |
-| sharing bed | 2 |
-| rarely change sheets / poor hygiene / rarely wash hands | 2 |
+**Faktor Risiko (skor per pattern: 2):**
+| Keyword | Skor |
+|---------|------|
+| pondok / asrama | 2 |
+| sekamar rame / banyak orang / desek desekan | 2 |
+| tukeran baju / pinjem baju / tukeran sarung / tukeran handuk | 2 |
+| kasur barengan | 2 |
+| jarang ganti sprei / kebersihan kurang / jarang cuci tangan | 2 |
 
-**Negative Keywords (all categories):**
-| Keyword | Score |
-|---------|-------|
-| not itchy / no itching | -2 |
-| only during day / not at night | -1 |
-| alone / no one else | -2 |
-| normal skin / no bumps | -2 |
+**Keyword Negatif (semua kategori):**
+| Keyword | Skor |
+|---------|------|
+| ga gatal / tidak gatal | -2 |
+| cuma siang / tidak malam | -1 |
+| sendiri / ga ada yang lain | -2 |
+| kulit normal / ga ada bentol | -2 |
 
-**Total Score Interpretation:**
-| Score | Level | Interpretation |
-|-------|-------|----------------|
-| ≥ 7 | High | Highly likely scabies |
-| 4 – 6 | Moderate | Suspected scabies, needs further evaluation |
-| ≤ 3 | Low | Unlikely scabies |
-
-
----
-
-### 3.6 Disease Perception
-
-**US-06:** As the system, I want to understand patient perception to provide appropriate responses.
-
-> **Implementation details:** See [AI_BOT_SPEC.md §8.3](./phase-1/AI_BOT_SPEC.md)
-
-User perception is **inferred from conversation context** (not explicit questions). LLM detects perception indicators from user statements throughout the chat.
-
-**Perception Mapping:**
-| Perception | Indicators | AI Response in Output |
-|------------|------------|----------------------|
-| Underestimate | "just normal itch", "no big deal", "will heal on its own" | "Even though it seems mild, this condition can spread to others." |
-| Overestimate | "very scared", "is this dangerous", "paranoid" | "No need to worry too much, this condition is generally treatable." |
-| Barrier | "embarrassed", "don't want to check", "no money" | "You can start with online consultation or the nearest healthcare facility." |
-| Adequate | "want to get checked", "needs treatment" | "You already have the right understanding." |
+**Interpretasi Skor Total:**
+| Skor | Level | Interpretasi |
+|------|-------|-------------|
+| ≥ 7 | Tinggi | Kemungkinan besar skabies |
+| 4 – 6 | Sedang | Curiga skabies, perlu evaluasi lanjut |
+| ≤ 3 | Rendah | Kemungkinan kecil skabies |
 
 ---
 
-### 3.7 Screening Result Output
+### 3.6 Persepsi Penyakit
 
-**US-07:** As a user, I want to see clear and actionable screening results.
+**US-06:** Sebagai sistem, saya ingin memahami persepsi pasien untuk memberikan respons yang sesuai.
 
-> **Output generation details:** See [AI_BOT_SPEC.md §8](./phase-1/AI_BOT_SPEC.md)
+> **Detail implementasi:** Lihat [AI_BOT_SPEC.md §8.3](./phase-1/AI_BOT_SPEC.md)
 
-**4-Part Output:**
+Persepsi user **di-infer dari konteks percakapan** (bukan pertanyaan eksplisit). LLM mendeteksi indikator persepsi dari kalimat user sepanjang chat.
 
-1. **Conclusion & Risk Level** (LLM-generated, based on total score)
-2. **Perception Response** (LLM-generated, adaptive to inferred user perception)
-3. **Action Recommendations** (LLM paraphrases from template per level — substance fixed):
-   - High: See healthcare provider immediately, avoid sharing items
-   - Moderate: Monitor, see provider if worsening, maintain hygiene
-   - Low: Maintain skin hygiene, see provider if not improving
-4. **Personalized Care Advice** (LLM-generated based on user response context)
-
-**Display:**
-- All users: Total score + risk level + breakdown per category + 4-part output
-- Cadre/Doctor/Admin Dashboard (Phase 2): All above + full chat transcript
-- Disclaimer on result card: "This is not a medical diagnosis. For proper treatment, consult a healthcare provider."
-- If score ≥ 4: label "Healthcare consultation recommended" (MVP). Label "Awaiting doctor review" only active in Phase 2 when doctor system is available.
-- Buttons: "Start New Screening" & "Back to Home"
+**Mapping Persepsi:**
+| Persepsi | Indikator | Respons AI di Output |
+|----------|-----------|---------------------|
+| Underestimate | "cuma gatal biasa", "gapapa", "nanti sembuh" | "Walaupun terlihat ringan, kondisi ini bisa menular ke orang lain." |
+| Overestimate | "takut banget", "ini bahaya ga", "parno" | "Tidak perlu terlalu khawatir, kondisi ini umumnya bisa ditangani." |
+| Barrier | "malu", "males periksa", "ga ada biaya" | "Kamu bisa mulai dari konsultasi online atau fasilitas kesehatan terdekat." |
+| Adequate | "mau periksa", "harus diobatin" | "Kamu sudah berada di pemahaman yang tepat." |
 
 ---
 
-### 3.8 Screening History (Phase 1 — Client-Side)
+### 3.7 Output Hasil Screening
 
-**US-08:** As an anonymous user, I want to view my screening history so I can check previous results without needing screenshots.
+**US-07:** Sebagai user, saya ingin melihat hasil screening yang jelas dan actionable.
+
+> **Detail output generation:** Lihat [AI_BOT_SPEC.md §8](./phase-1/AI_BOT_SPEC.md)
+
+**Output 4 bagian:**
+
+1. **Kesimpulan & Level Risiko** (LLM-generated, berdasarkan skor total)
+2. **Respons Persepsi** (LLM-generated, adaptif terhadap persepsi user yang di-infer)
+3. **Rekomendasi Aksi** (LLM paraphrase dari template per level — substance fixed):
+   - Tinggi: Segera periksa ke tenaga kesehatan, hindari berbagi barang
+   - Sedang: Pantau, segera periksa jika makin parah, jaga kebersihan
+   - Rendah: Jaga kebersihan kulit, periksa jika tidak membaik
+4. **Saran Penanganan Personalisasi** (LLM-generated berdasarkan konteks jawaban user)
+
+**Tampilan:**
+- Semua user: Total skor + level risiko + breakdown per kategori + 4 bagian output
+- Dashboard Kader/Dokter/Admin (Fase 2): Semua di atas + full chat transcript
+- Disclaimer di result card: "Ini bukan diagnosis medis. Untuk penanganan yang tepat, konsultasikan ke tenaga kesehatan."
+- Jika skor ≥ 4: label "Disarankan konsultasi ke tenaga kesehatan" (MVP). Label "Menunggu review dokter" baru aktif di Fase 2 saat sistem dokter tersedia.
+- Tombol: "Mulai Screening Baru" & "Kembali ke Beranda"
+
+---
+
+### 3.8 Riwayat Screening (Phase 1 — Client-Side)
+
+**US-08:** Sebagai pengguna anonim, saya ingin melihat riwayat screening yang pernah saya lakukan agar bisa mengecek hasil sebelumnya tanpa perlu screenshot.
 
 **Acceptance Criteria:**
 
-| # | Criteria |
+| # | Kriteria |
 |---|----------|
-| 1 | `/history` page displays list of **completed** screenings from localStorage |
-| 2 | Each item shows: date, risk badge (color), total score, mode (AI/questionnaire) |
-| 3 | "View Result" → navigates to result page |
-| 4 | "View Chat" → navigates to chat page in read-only mode (hide input, scroll-only) |
-| 5 | History auto-deleted after 30 days (auto-expire) |
-| 6 | "Delete All History" button with confirmation dialog |
-| 7 | Privacy note: "History is only stored on this device" |
-| 8 | Landing page: "Screening History" button conditional (only shown if data exists in localStorage) |
-| 9 | Empty state: Capi illustration + "No history yet" + CTA to start screening |
-| 10 | localStorage only stores metadata (sessionId, shareToken, date, score, risk level, mode) — not chat content |
-| 11 | Chat transcript can be reopened in read-only mode (no input, scroll-only) |
+| 1 | Halaman `/history` menampilkan list screening **yang sudah selesai** dari localStorage |
+| 2 | Setiap item menampilkan: tanggal, risk badge (warna), skor total, mode (AI/questionnaire) |
+| 3 | "Lihat Hasil" → navigasi ke halaman result |
+| 4 | "Lihat Chat" → navigasi ke halaman chat dalam mode read-only (hide input, scroll-only) |
+| 5 | Riwayat otomatis terhapus setelah 30 hari (auto-expire) |
+| 6 | Tombol "Hapus Semua Riwayat" dengan confirmation dialog |
+| 7 | Privacy note: "Riwayat hanya tersimpan di perangkat ini" |
+| 8 | Landing page: tombol "Riwayat Screening" conditional (hanya tampil jika ada data di localStorage) |
+| 9 | Empty state: ilustrasi Capi + "Belum ada riwayat" + CTA mulai screening |
+| 10 | localStorage hanya simpan metadata (sessionId, shareToken, tanggal, skor, risk level, mode) — bukan konten chat |
+| 11 | Transcript chat dapat dibuka kembali dalam mode read-only (tanpa input, scroll-only) |
 
-**Limitations & Design:**
+**Batasan & Desain:**
 
-| Aspect | Detail |
-|--------|--------|
-| Storage | Browser localStorage — data not sent to server |
-| When saved | After screening **completed** (result received). Incomplete sessions not in history. |
-| Security | Detail access requires sessionId + shareToken (double verification) |
-| Expire | 30 days from screening date |
-| Cross-device | Not supported — history only per device/browser |
-| Incognito browser | History not stored (localStorage cleared when tab closes) |
+| Aspek | Detail |
+|-------|--------|
+| Storage | localStorage browser — data tidak dikirim ke server |
+| Kapan disimpan | Setelah screening **completed** (result diterima). Session incomplete tidak masuk riwayat. |
+| Keamanan | Akses detail require sessionId + shareToken (double verification) |
+| Expire | 30 hari dari tanggal screening |
+| Cross-device | Tidak support — riwayat hanya per device/browser |
+| Incognito browser | Riwayat tidak tersimpan (localStorage dihapus saat tab ditutup) |
 
 **Phase 2 Upgrade:**
 
-When user logs in, localStorage history migrates to server:
-- Frontend sends sessionId + shareToken pairs to backend
-- Backend verifies & links to userId
-- `/history` page switches source: localStorage → API
-- "Incognito Mode" feature (§2.4) = screening not linked to account
-- **Resume incomplete sessions:** Display unfinished sessions with "Continue" button. If expired (>24 hours), handle gracefully: "Session expired, start new?"
-
-
----
-
-### 3.9 Cadre Dashboard
-
-**US-09:** As a cadre, I want to manage respondents and view screening results.
-
-**Acceptance Criteria:**
-- Respondent list: name, last screening date, status (not done/completed/pending review)
-- "Add Respondent" button → demographics form
-- Per respondent detail: screening results + detailed scores + doctor responses
-- Filter/search respondents
+Saat user login, riwayat localStorage di-migrate ke server:
+- Frontend kirim sessionId + shareToken pairs ke backend
+- Backend verify & link ke userId
+- Halaman `/history` switch source: localStorage → API
+- Fitur "Mode Incognito" (§2.4) = screening yang tidak di-link ke akun
+- **Resume incomplete sessions:** Tampilkan session belum selesai dengan tombol "Lanjutkan". Jika expired (>24 jam), handle gracefully: "Sesi kedaluwarsa, mulai baru?"
 
 ---
 
-### 3.10 Doctor Dashboard
+### 3.9 Dashboard Kader
 
-**US-10:** As a doctor, I want to review screening results that need clinical attention.
+**US-09:** Sebagai kader, saya ingin mengelola responden dan melihat hasil screening.
 
 **Acceptance Criteria:**
-- Queue: list of screenings with score ≥ 4, sorted by most recent
-- Per item displays: demographic data, chat responses, scores per category, AI output
-- Review form:
-  - Confirm/Correct risk level (dropdown)
-  - Doctor notes (free text)
-  - Override/add care suggestions
-  - Action: Refer to healthcare facility / Education only / Other
+- Daftar responden: nama, tanggal screening terakhir, status (belum/selesai/pending review)
+- Tombol "Tambah Responden" → form demografis
+- Detail per responden: hasil screening + skor detail + respons dokter
+- Filter/search responden
+
+---
+
+### 3.10 Dashboard Dokter
+
+**US-10:** Sebagai dokter, saya ingin mereview hasil screening yang membutuhkan perhatian klinis.
+
+**Acceptance Criteria:**
+- Antrian: list screening skor ≥ 4, sorted terbaru
+- Per item tampilkan: data demografis, jawaban chat, skor per kategori, output AI
+- Form review:
+  - Konfirmasi/Koreksi level risiko (dropdown)
+  - Catatan dokter (free text)
+  - Override/tambah saran penanganan
+  - Aksi: Rujuk ke faskes / Cukup edukasi / Lainnya
 - Status tracking: Pending → Reviewed
-- AI suggestions that are overridden displayed as "Doctor Notes" to user/cadre
+- Saran AI yang di-override ditampilkan sebagai "Catatan Dokter" ke user/kader
 
 ---
 
-### 3.11 Admin Dashboard
+### 3.11 Dashboard Admin
 
-**US-11:** As an admin, I want to manage users and access research data.
+**US-11:** Sebagai admin, saya ingin mengelola user dan mengakses data riset.
 
 **Acceptance Criteria:**
-- List of pending Cadres & Doctors → Approve/Reject buttons
-- Export screening data to CSV (filter: date, region, risk level)
-- Overview: total users, total screenings, breakdown by status
+- List Kader & Dokter pending → tombol Approve/Reject
+- Export data screening ke CSV (filter: tanggal, wilayah, level risiko)
+- Overview: total user, total screening, breakdown per status
 
 ---
 
-### 3.12 How to Use Page
+### 3.12 Halaman Cara Penggunaan
 
-**US-12:** As a user, I want a guide on how to use SICAPS.
+**US-12:** Sebagai user, saya ingin panduan cara menggunakan SICAPS.
 
 **Acceptance Criteria:**
-- Step-by-step usage instructions
-- Explanation of SICAPS and its limitations
-- Example conversation flow
+- Step-by-step penggunaan
+- Penjelasan tentang SICAPS dan limitasinya
+- Contoh alur percakapan
 - FAQ
 
 ---
 
 ## 4. Non-Functional Requirements
 
-### 4.1 Performance
-- AI chat response < 5 seconds
-- Page load < 3 seconds (3G network)
-- Voice-to-text latency < 2 seconds
+### 4.1 Performa
+- Respons chat AI < 5 detik
+- Halaman load < 3 detik (3G network)
+- Voice-to-text latency < 2 detik
 
-### 4.2 Security
-- Rate limiting on LLM endpoints
+### 4.2 Keamanan
+- Rate limiting pada endpoint LLM
 - Role-based access control (RBAC)
 - Input validation & sanitization
 - CSRF protection
-- Medical data handled with privacy principles
-- API keys not exposed to client
+- Data medis di-handle dengan prinsip privasi
+- API key tidak exposed ke client
 
-### 4.3 Accessibility
+### 4.3 Aksesibilitas
 - Mobile-first responsive design (3 breakpoints: mobile < 640px, tablet 640-1024px, desktop > 1024px)
-- Voice input (STT) as alternative to typing
-- Voice output (TTS) as alternative to reading — Web Speech API, details in [AI_BOT_SPEC.md §13](./phase-1/AI_BOT_SPEC.md)
-- Indonesian language (semi-informal)
+- Voice input (STT) sebagai alternatif mengetik
+- Voice output (TTS) sebagai alternatif membaca — Web Speech API, detail di [AI_BOT_SPEC.md §13](./phase-1/AI_BOT_SPEC.md)
+- Bahasa Indonesia (semi-informal)
 - Minimum WCAG 2.1 AA
-- Adaptive chat theme based on education level — see [DESIGN_SPEC.md](./phase-1/DESIGN_SPEC.md)
-- PDF download of screening results (with Yarsi header)
-- Shareable result link
+- Adaptive chat theme berdasarkan tingkat pendidikan — see [DESIGN_SPEC.md](./phase-1/DESIGN_SPEC.md)
+- PDF download hasil screening (dengan header YARSI)
+- Shareable link hasil
 
-### 4.4 Reliability
-- Graceful fallback if LLM unavailable
-- Session recovery if connection lost
-- Informative error handling
+### 4.4 Reliabilitas
+- Graceful fallback jika LLM tidak tersedia
+- Session recovery jika koneksi terputus
+- Error handling yang informatif
 
 ---
 
-## 5. Development Phases
+## 5. Fase Pengembangan
 
-### Phase 1 — MVP (Minimal Scope)
-- Simple landing page + disclaimer
-- Anonymous only (no login/register)
-- Demographics form
+### Fase 1 — MVP (Scope Minimal)
+- Landing page sederhana + disclaimer
+- Anonim saja (tanpa login/register)
+- Form demografis
 - Chat screening (bubble chat + voice input)
-- Scoring engine (hybrid: LLM extract → backend calculates)
-- Screening result output (4 parts + disclaimer)
-- Data persisted to Supabase (for research)
-- Bilingual support (Indonesian + English) — see [BILINGUAL_SPEC.md](./phase-1/BILINGUAL_SPEC.md)
+- Scoring engine (hybrid: LLM extract → backend hitung)
+- Output hasil screening (4 bagian + disclaimer)
+- Data persist ke Supabase (untuk riset)
+- Bilingual support (Indonesia + English) — see [BILINGUAL_SPEC.md](./phase-1/BILINGUAL_SPEC.md)
 - LLM via Hugging Face Inference API
 - Deploy: Vercel (frontend + API) + Supabase (DB)
 
-### Phase 2 — Auth & Roles
+### Fase 2 — Auth & Roles
 - Login/Register system (Supabase Auth)
-- Roles: Admin, Doctor, Cadre, General User
-- Admin approval for cadre/doctor
-- Cadre Dashboard (manage respondents)
-- Doctor Dashboard (review score ≥ 4)
-- Admin Dashboard (approve + export)
+- Role: Admin, Dokter, Kader, User Umum
+- Admin approval kader/dokter
+- Dashboard Kader (kelola responden)
+- Dashboard Dokter (review skor ≥ 4)
+- Dashboard Admin (approve + export)
 - Image-based assessment (custom CV model) — see [IMAGE_ASSESSMENT_SPEC.md](./phase-2/IMAGE_ASSESSMENT_SPEC.md)
 
-### Phase 3 — Enhancement
-- Real-time statistics (risk distribution charts, regional tables)
-- Interactive outbreak maps
-- Email/push notifications for doctors when new screening arrives
-- PWA (Progressive Web App) for offline access
-- LLM migration to self-deployed server
+### Fase 3 — Enhancement
+- Statistik real-time (chart distribusi risiko, tabel per wilayah)
+- Peta sebaran interaktif
+- Notifikasi email/push untuk dokter saat screening baru masuk
+- PWA (Progressive Web App) untuk offline access
+- LLM migrasi ke self-deployed server
 
 ---
 
@@ -474,8 +471,8 @@ When user logs in, localStorage history migrates to server:
 
 | Metric | Target |
 |--------|--------|
-| Screenings completed/week | ≥ 50 |
-| Accuracy vs doctor diagnosis | ≥ 80% |
-| Doctor response time | < 24 hours |
-| User drop-off rate (start but don't finish) | < 20% |
-| Regional coverage | ≥ 5 pondok |
+| Screening completed/minggu | ≥ 50 |
+| Akurasi vs diagnosis dokter | ≥ 80% |
+| Response time dokter | < 24 jam |
+| User drop-off rate (mulai tapi tidak selesai) | < 20% |
+| Coverage wilayah | ≥ 5 pondok |

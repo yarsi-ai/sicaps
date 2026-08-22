@@ -192,11 +192,18 @@ function setupPrismaMocks(sessionState: {
   lokasiKhas?: boolean;
   asrama?: boolean;
   tukarAlat?: boolean;
+  /**
+   * The session's photo row. Defaults to a resolved one so scenarios about
+   * dimension collection and follow-up are not silently parked in
+   * AWAITING_IMAGE — pass `null` to exercise the photo gate itself.
+   */
+  image?: { visualResult: string | null } | null;
 }) {
   mockUpdateMany.mockResolvedValue({ count: 1 } as never);
   mockFindUniqueOrThrow.mockResolvedValue({
     id: SESSION_ID,
     locale: 'id',
+    image: sessionState.image === undefined ? { visualResult: 'NEGATIVE' } : sessionState.image,
     phase: sessionState.phase,
     turnCount: sessionState.turnCount,
     dimensiTerisi: sessionState.dimensiTerisi,
@@ -324,6 +331,42 @@ describe('Integration: Multi-turn screening scenarios', () => {
           }),
         }),
       );
+    });
+
+    it('parks in AWAITING_IMAGE instead of ASKING_PERCEPTION while no photo exists', async () => {
+      setupPrismaMocks({
+        phase: 'COLLECTING',
+        turnCount: 5,
+        dimensiTerisi: {
+          intensitas: { keywords: ['gatal parah'], negasi: [] },
+          waktu: { keywords: ['lebih 2 minggu'], negasi: [] },
+          lokasi_tubuh: { keywords: ['sela jari'], negasi: [] },
+          kontak: { keywords: ['teman sekamar gatal'], negasi: [] },
+          faktor_risiko: { keywords: ['kamar padat'], negasi: [] },
+        },
+        dimensiBelum: ['lesi'],
+        perception: null,
+        chipsAnswered: ['kontak', 'lokasi', 'asrama', 'tukar_alat'],
+        image: null,
+      });
+
+      const mockClient = createMultiTurnLLMClient(
+        [buildExtractionJson({ lesi: { keywords: ['terowongan'] } })],
+        ['Terima kasih, semua info sudah lengkap.'],
+      );
+      mockGetPrimaryClient.mockReturnValue(mockClient as never);
+
+      const events = await runTurn('Ada garis tipis di kulit kayak terowongan');
+
+      expect(events.find((e) => e.type === 'phase')!.data).toBe('AWAITING_IMAGE');
+
+      // The gate turn uses fixed copy: a generic compose would have the model
+      // invent another clinical question while the turn waits on an upload.
+      const tokens = events
+        .filter((e) => e.type === 'token')
+        .map((e) => e.data)
+        .join('');
+      expect(tokens).toContain('foto area kulit yang gatal');
     });
   });
 

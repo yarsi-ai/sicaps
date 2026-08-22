@@ -2,6 +2,7 @@ export type DisplayState =
   | 'IDLE'
   | 'GREETING'
   | 'COLLECTING'
+  | 'AWAITING_IMAGE'
   | 'ASKING_PERCEPTION'
   | 'OFFERING_RESULT'
   | 'SCREENING_COMPLETE'
@@ -26,6 +27,7 @@ export function deriveDisplayState(
     const validPhases: DisplayState[] = [
       'GREETING',
       'COLLECTING',
+      'AWAITING_IMAGE',
       'ASKING_PERCEPTION',
       'OFFERING_RESULT',
       'SCREENING_COMPLETE',

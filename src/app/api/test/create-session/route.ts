@@ -39,7 +39,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       successResponse({
         sessionId: result.sessionId,
         source: 'testing',
-        greeting: result.greeting,
+        // A session can open with more than one bot message, so the console gets
+        // the whole list. `greeting` used to be a single string.
+        openingMessages: result.openingMessages,
       }),
     );
   }

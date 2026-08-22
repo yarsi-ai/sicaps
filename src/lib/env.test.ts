@@ -36,13 +36,9 @@ describe('envSchema', () => {
   });
 
   it('throws ZodError for any env set missing a required var', () => {
-    const requiredKeys = [
-      'DATABASE_URL',
-      'LLM_BASE_URL',
-      'LLM_API_KEY',
-      'NEXT_PUBLIC_APP_URL',
-      'CONSOLE_PIN',
-    ] as const;
+    // NEXT_PUBLIC_APP_URL is optional in the schema (not currently used), so it
+    // is excluded here — removing it must not make the set invalid.
+    const requiredKeys = ['DATABASE_URL', 'LLM_BASE_URL', 'LLM_API_KEY', 'CONSOLE_PIN'] as const;
 
     fc.assert(
       fc.property(validEnvArbitrary, fc.constantFrom(...requiredKeys), (env, keyToRemove) => {
@@ -622,6 +618,385 @@ describe('envSchema', () => {
         }),
         { numRuns: 50 },
       );
+    });
+  });
+
+  /**
+   * Vision API environment validation (conditional on SCREENING_CHAT_VERSION)
+   *
+   * When SCREENING_CHAT_VERSION=v2, VISION_MODEL_URL is required.
+   * VISION_MODEL_API_KEY is always optional — the configured vision endpoint
+   * does not require authentication, and predictVisual() only attaches an
+   * Authorization header when a key is present.
+   *
+   * **Validates: Requirement 6.1** (visual-detection spec)
+   */
+  describe('Vision API environment validation', () => {
+    const baseEnv = {
+      DATABASE_URL: 'https://db.example.com',
+      LLM_BASE_URL: 'https://llm.example.com',
+      LLM_API_KEY: 'test-key',
+      NEXT_PUBLIC_APP_URL: 'https://app.example.com',
+      CONSOLE_PIN: 'secure-pin-123',
+    };
+
+    it('accepts v1 mode without vision vars (default behavior)', () => {
+      const result = envSchema.safeParse({
+        ...baseEnv,
+        SCREENING_CHAT_VERSION: 'v1',
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.SCREENING_CHAT_VERSION).toBe('v1');
+        expect(result.data.VISION_MODEL_URL).toBeUndefined();
+        expect(result.data.VISION_MODEL_API_KEY).toBeUndefined();
+      }
+    });
+
+    it('accepts absent SCREENING_CHAT_VERSION (defaults to v1) without vision vars', () => {
+      const result = envSchema.safeParse(baseEnv);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.SCREENING_CHAT_VERSION).toBe('v1');
+        expect(result.data.VISION_MODEL_URL).toBeUndefined();
+        expect(result.data.VISION_MODEL_API_KEY).toBeUndefined();
+      }
+    });
+
+    it('rejects v2 mode when VISION_MODEL_URL is missing', () => {
+      const result = envSchema.safeParse({
+        ...baseEnv,
+        SCREENING_CHAT_VERSION: 'v2',
+        VISION_MODEL_API_KEY: 'vision-key',
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const paths = result.error.issues.map((i) => i.path[0]);
+        expect(paths).toContain('VISION_MODEL_URL');
+        const messages = result.error.issues.map((i) => i.message);
+        expect(messages.some((m) => m.includes('VISION_MODEL_URL') && m.includes('v2'))).toBe(true);
+      }
+    });
+
+    it('accepts v2 mode without VISION_MODEL_API_KEY, since it is always optional', () => {
+      const result = envSchema.safeParse({
+        ...baseEnv,
+        SCREENING_CHAT_VERSION: 'v2',
+        VISION_MODEL_URL: 'https://vision.example.com',
+        SUPABASE_URL: 'https://project.supabase.co',
+        SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.VISION_MODEL_URL).toBe('https://vision.example.com');
+        expect(result.data.VISION_MODEL_API_KEY).toBeUndefined();
+      }
+    });
+
+    it('rejects v2 mode when VISION_MODEL_URL is missing, even with an API key set', () => {
+      const result = envSchema.safeParse({
+        ...baseEnv,
+        SCREENING_CHAT_VERSION: 'v2',
+        VISION_MODEL_API_KEY: 'vision-key',
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const paths = result.error.issues.map((i) => i.path[0]);
+        expect(paths).toContain('VISION_MODEL_URL');
+        expect(paths).not.toContain('VISION_MODEL_API_KEY');
+      }
+    });
+
+    it('accepts v2 mode when all vision vars are provided', () => {
+      const result = envSchema.safeParse({
+        ...baseEnv,
+        SCREENING_CHAT_VERSION: 'v2',
+        VISION_MODEL_URL: 'https://vision.example.com',
+        VISION_MODEL_API_KEY: 'vision-secret-key',
+        SUPABASE_URL: 'https://project.supabase.co',
+        SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.SCREENING_CHAT_VERSION).toBe('v2');
+        expect(result.data.VISION_MODEL_URL).toBe('https://vision.example.com');
+        expect(result.data.VISION_MODEL_API_KEY).toBe('vision-secret-key');
+        expect(result.data.VISION_TIMEOUT_MS).toBe(12000); // default
+      }
+    });
+
+    it('accepts custom VISION_TIMEOUT_MS when provided with v2', () => {
+      const result = envSchema.safeParse({
+        ...baseEnv,
+        SCREENING_CHAT_VERSION: 'v2',
+        VISION_MODEL_URL: 'https://vision.example.com',
+        VISION_MODEL_API_KEY: 'vision-secret-key',
+        SUPABASE_URL: 'https://project.supabase.co',
+        SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
+        VISION_TIMEOUT_MS: '30000',
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.VISION_TIMEOUT_MS).toBe(30000);
+      }
+    });
+
+    it('rejects VISION_TIMEOUT_MS outside bounds [1, 120000]', () => {
+      const r1 = envSchema.safeParse({
+        ...baseEnv,
+        SCREENING_CHAT_VERSION: 'v2',
+        VISION_MODEL_URL: 'https://vision.example.com',
+        VISION_MODEL_API_KEY: 'vision-secret-key',
+        SUPABASE_URL: 'https://project.supabase.co',
+        SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
+        VISION_TIMEOUT_MS: '0',
+      });
+      expect(r1.success).toBe(false);
+
+      const r2 = envSchema.safeParse({
+        ...baseEnv,
+        SCREENING_CHAT_VERSION: 'v2',
+        VISION_MODEL_URL: 'https://vision.example.com',
+        VISION_MODEL_API_KEY: 'vision-secret-key',
+        SUPABASE_URL: 'https://project.supabase.co',
+        SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
+        VISION_TIMEOUT_MS: '120001',
+      });
+      expect(r2.success).toBe(false);
+    });
+
+    it('rejects invalid VISION_MODEL_URL (not a URL)', () => {
+      const result = envSchema.safeParse({
+        ...baseEnv,
+        SCREENING_CHAT_VERSION: 'v2',
+        VISION_MODEL_URL: 'not-a-url',
+        VISION_MODEL_API_KEY: 'vision-secret-key',
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const paths = result.error.issues.map((i) => i.path[0]);
+        expect(paths).toContain('VISION_MODEL_URL');
+      }
+    });
+
+    it('accepts v1 mode with vision vars present (optional extra config)', () => {
+      const result = envSchema.safeParse({
+        ...baseEnv,
+        SCREENING_CHAT_VERSION: 'v1',
+        VISION_MODEL_URL: 'https://vision.example.com',
+        VISION_MODEL_API_KEY: 'vision-secret-key',
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.SCREENING_CHAT_VERSION).toBe('v1');
+        expect(result.data.VISION_MODEL_URL).toBe('https://vision.example.com');
+        expect(result.data.VISION_MODEL_API_KEY).toBe('vision-secret-key');
+      }
+    });
+
+    /**
+     * Regression: `.env` files commonly leave an unset optional var as `KEY=`
+     * rather than omitting the line, which process.env reads as `""`. This
+     * broke every deployment that left VISION_MODEL_API_KEY blank — validation
+     * threw before the request handler ever ran, taking down chat and image
+     * upload alike even though the endpoint needs no key at all.
+     */
+    it('treats a blank VISION_MODEL_API_KEY the same as an absent one', () => {
+      const result = envSchema.safeParse({
+        ...baseEnv,
+        SCREENING_CHAT_VERSION: 'v2',
+        VISION_MODEL_URL: 'https://vision.example.com',
+        VISION_MODEL_API_KEY: '',
+        SUPABASE_URL: 'https://project.supabase.co',
+        SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.VISION_MODEL_API_KEY).toBeUndefined();
+      }
+    });
+  });
+
+  /**
+   * Supabase Storage environment validation.
+   *
+   * SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are optional in every mode,
+   * including v2: storage is not required to run visual detection, only the
+   * vision API is. Their absence means `submitImage()` skips the storage
+   * upload (storage.service.ts#isStorageConfigured) and leaves `storagePath`
+   * null — analysis and phase progression are unaffected.
+   */
+  describe('Supabase Storage environment validation', () => {
+    const baseEnv = {
+      DATABASE_URL: 'https://db.example.com',
+      LLM_BASE_URL: 'https://llm.example.com',
+      LLM_API_KEY: 'test-key',
+      NEXT_PUBLIC_APP_URL: 'https://app.example.com',
+      CONSOLE_PIN: 'secure-pin-123',
+    };
+
+    it('accepts v1 mode without Supabase Storage vars', () => {
+      const result = envSchema.safeParse({
+        ...baseEnv,
+        SCREENING_CHAT_VERSION: 'v1',
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.SUPABASE_URL).toBeUndefined();
+        expect(result.data.SUPABASE_SERVICE_ROLE_KEY).toBeUndefined();
+      }
+    });
+
+    it('accepts v2 mode without SUPABASE_URL — storage is optional even here', () => {
+      const result = envSchema.safeParse({
+        ...baseEnv,
+        SCREENING_CHAT_VERSION: 'v2',
+        VISION_MODEL_URL: 'https://vision.example.com',
+        VISION_MODEL_API_KEY: 'vision-key',
+        SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.SUPABASE_URL).toBeUndefined();
+      }
+    });
+
+    it('accepts v2 mode without SUPABASE_SERVICE_ROLE_KEY — storage is optional even here', () => {
+      const result = envSchema.safeParse({
+        ...baseEnv,
+        SCREENING_CHAT_VERSION: 'v2',
+        VISION_MODEL_URL: 'https://vision.example.com',
+        VISION_MODEL_API_KEY: 'vision-key',
+        SUPABASE_URL: 'https://project.supabase.co',
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.SUPABASE_SERVICE_ROLE_KEY).toBeUndefined();
+      }
+    });
+
+    it('normalizes a blank SUPABASE_SERVICE_ROLE_KEY to absent rather than an empty key', () => {
+      // Same `KEY=` blank-line issue as VISION_MODEL_API_KEY. Since this var is
+      // never required, the only thing to verify is the normalization itself.
+      const result = envSchema.safeParse({
+        ...baseEnv,
+        SCREENING_CHAT_VERSION: 'v2',
+        VISION_MODEL_URL: 'https://vision.example.com',
+        SUPABASE_URL: 'https://project.supabase.co',
+        SUPABASE_SERVICE_ROLE_KEY: '',
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.SUPABASE_SERVICE_ROLE_KEY).toBeUndefined();
+      }
+    });
+
+    it('accepts v2 mode when both Supabase vars are absent', () => {
+      const result = envSchema.safeParse({
+        ...baseEnv,
+        SCREENING_CHAT_VERSION: 'v2',
+        VISION_MODEL_URL: 'https://vision.example.com',
+        VISION_MODEL_API_KEY: 'vision-key',
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.SUPABASE_URL).toBeUndefined();
+        expect(result.data.SUPABASE_SERVICE_ROLE_KEY).toBeUndefined();
+      }
+    });
+
+    it('accepts v2 mode when Supabase vars are provided', () => {
+      const result = envSchema.safeParse({
+        ...baseEnv,
+        SCREENING_CHAT_VERSION: 'v2',
+        VISION_MODEL_URL: 'https://vision.example.com',
+        VISION_MODEL_API_KEY: 'vision-key',
+        SUPABASE_URL: 'https://project.supabase.co',
+        SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.SUPABASE_URL).toBe('https://project.supabase.co');
+        expect(result.data.SUPABASE_SERVICE_ROLE_KEY).toBe('service-role-key');
+      }
+    });
+
+    it('rejects invalid SUPABASE_URL (not a URL) even though the var is optional', () => {
+      const result = envSchema.safeParse({
+        ...baseEnv,
+        SCREENING_CHAT_VERSION: 'v2',
+        VISION_MODEL_URL: 'https://vision.example.com',
+        VISION_MODEL_API_KEY: 'vision-key',
+        SUPABASE_URL: 'not-a-url',
+        SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const paths = result.error.issues.map((i) => i.path[0]);
+        expect(paths).toContain('SUPABASE_URL');
+      }
+    });
+
+    it('accepts v1 mode with Supabase vars present (optional extra config)', () => {
+      const result = envSchema.safeParse({
+        ...baseEnv,
+        SCREENING_CHAT_VERSION: 'v1',
+        SUPABASE_URL: 'https://project.supabase.co',
+        SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.SUPABASE_URL).toBe('https://project.supabase.co');
+        expect(result.data.SUPABASE_SERVICE_ROLE_KEY).toBe('service-role-key');
+      }
+    });
+  });
+
+  /**
+   * VISION_MODEL_URL remains the one hard v2 dependency: it is what
+   * getSupabaseClient's sibling, predictVisual(), actually calls, and there is
+   * no "skip if unconfigured" path for it the way there is for storage.
+   */
+  describe('VISION_MODEL_URL requirement under v2', () => {
+    const baseEnv = {
+      DATABASE_URL: 'https://db.example.com',
+      LLM_BASE_URL: 'https://llm.example.com',
+      LLM_API_KEY: 'test-key',
+      NEXT_PUBLIC_APP_URL: 'https://app.example.com',
+      CONSOLE_PIN: 'secure-pin-123',
+    };
+
+    it('rejects v2 mode when VISION_MODEL_URL is missing, with no Supabase vars set', () => {
+      const result = envSchema.safeParse({
+        ...baseEnv,
+        SCREENING_CHAT_VERSION: 'v2',
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const paths = result.error.issues.map((i) => i.path[0]);
+        expect(paths).toContain('VISION_MODEL_URL');
+        expect(paths).not.toContain('SUPABASE_URL');
+        expect(paths).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
+      }
     });
   });
 });

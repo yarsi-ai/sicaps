@@ -1,15 +1,34 @@
 import { z } from 'zod';
 
+/**
+ * An optional, non-empty string env var.
+ *
+ * `.env` files commonly leave an unset optional var as `KEY=` rather than
+ * omitting the line, which `process.env` reads as `""`, not `undefined`.
+ * Plain `z.string().min(1).optional()` only tolerates the latter, so an
+ * intentionally-blank key throws instead of being treated as absent —
+ * `VISION_MODEL_API_KEY=` failed this way. The preprocess step normalizes
+ * blank to absent before the length check ever runs.
+ */
+function optionalNonEmptyString() {
+  return z.preprocess((val) => (val === '' ? undefined : val), z.string().min(1).optional());
+}
+
+/** Same normalization for an optional URL var (e.g. `LLM_FALLBACK_URL=`). */
+function optionalUrlString() {
+  return z.preprocess((val) => (val === '' ? undefined : val), z.string().url().optional());
+}
+
 export const envSchema = z
   .object({
     DATABASE_URL: z.string().url(),
     // Direct/session-pooled database connection, used by `prisma migrate deploy` for DDL.
     // Optional because not all environments run migrations (e.g. simple local dev).
-    DIRECT_URL: z.string().url().optional(),
+    DIRECT_URL: optionalUrlString(),
     LLM_BASE_URL: z.string().url(),
     LLM_API_KEY: z.string().min(1),
     LLM_MODEL: z.string().min(1).default('qwen2.5:7b'),
-    NEXT_PUBLIC_APP_URL: z.string().url(),
+    NEXT_PUBLIC_APP_URL: optionalUrlString(),
     NEXT_PUBLIC_THEME: z.string().min(1).default('earthy'),
     NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 
@@ -17,9 +36,9 @@ export const envSchema = z
     SCREENING_CHAT_VERSION: z.enum(['v1', 'v2']).default('v1'),
 
     // LLM fallback provider (all-or-nothing group)
-    LLM_FALLBACK_URL: z.string().url().optional(),
-    LLM_FALLBACK_KEY: z.string().min(1).optional(),
-    LLM_FALLBACK_MODEL: z.string().min(1).optional(),
+    LLM_FALLBACK_URL: optionalUrlString(),
+    LLM_FALLBACK_KEY: optionalNonEmptyString(),
+    LLM_FALLBACK_MODEL: optionalNonEmptyString(),
 
     // LLM generation parameters
     LLM_TEMPERATURE_CHAT: z.coerce.number().min(0).max(2).default(0.3),
@@ -46,11 +65,22 @@ export const envSchema = z
     LLM_RETRY_TIMEOUT_MS: z.coerce.number().int().min(1).max(120000).default(12000),
     LLM_HEALTH_TIMEOUT_MS: z.coerce.number().int().min(1).max(120000).default(5000),
 
+    // Vision API configuration (required when SCREENING_CHAT_VERSION=v2)
+    VISION_MODEL_URL: optionalUrlString(),
+    VISION_MODEL_API_KEY: optionalNonEmptyString(),
+    VISION_TIMEOUT_MS: z.coerce.number().int().min(1).max(120000).default(12000),
+
+    // Supabase Storage configuration. Optional even under v2 — screening
+    // images are analysed regardless; without these, uploaded photos are just
+    // not persisted to storage. See storage.service.ts#isStorageConfigured.
+    SUPABASE_URL: optionalUrlString(),
+    SUPABASE_SERVICE_ROLE_KEY: optionalNonEmptyString(),
+
     // Playground provider keys (all optional — providers available only when configured)
-    PLAYGROUND_GROQ_KEY: z.string().min(1).optional(),
-    PLAYGROUND_HF_KEY: z.string().min(1).optional(),
-    PLAYGROUND_GEMINI_KEY: z.string().min(1).optional(),
-    PLAYGROUND_OLLAMA_URL: z.string().url().optional(),
+    PLAYGROUND_GROQ_KEY: optionalNonEmptyString(),
+    PLAYGROUND_HF_KEY: optionalNonEmptyString(),
+    PLAYGROUND_GEMINI_KEY: optionalNonEmptyString(),
+    PLAYGROUND_OLLAMA_URL: optionalUrlString(),
 
     // Console PIN protection (interim auth before Phase 2 Supabase Auth)
     CONSOLE_PIN: z
@@ -87,6 +117,26 @@ export const envSchema = z
           message: 'LLM_FALLBACK_MODEL is required when any fallback variable is set',
         });
       }
+    }
+  })
+  .superRefine((data, ctx) => {
+    // Only VISION_MODEL_URL is required when SCREENING_CHAT_VERSION=v2: it is
+    // the actual analysis dependency. Supabase Storage is not required to run
+    // v2 — SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY are optional in the schema
+    // above, and their absence just means submitImage() skips the storage
+    // upload (see storage.service.ts#isStorageConfigured); the vision
+    // prediction and phase progression proceed either way.
+    if (data.SCREENING_CHAT_VERSION === 'v2') {
+      if (!data.VISION_MODEL_URL) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['VISION_MODEL_URL'],
+          message: 'VISION_MODEL_URL is required when SCREENING_CHAT_VERSION is v2',
+        });
+      }
+      // VISION_MODEL_API_KEY is intentionally not required here: the
+      // configured vision endpoint does not require authentication. It stays
+      // optional in the schema above for endpoints that do.
     }
   });
 

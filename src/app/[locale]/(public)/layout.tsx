@@ -16,7 +16,7 @@ export default async function PublicLayout({ children }: { children: React.React
       <ToastProvider>
         <ScreeningProvider>
           <SkipLink label={t('skipToContent')} />
-          <div className="relative flex h-full w-full max-w-[520px] flex-col bg-surface-alt shadow-[0_0_80px_color-mix(in_srgb,var(--color-text-strong)_16%,transparent)]">
+          <div className="relative flex h-full w-full max-w-shell flex-col bg-surface-alt shadow-[0_0_80px_color-mix(in_srgb,var(--color-text-strong)_16%,transparent)]">
             <main id="main-content" className="flex h-full w-full flex-col overflow-hidden">
               {children}
             </main>
